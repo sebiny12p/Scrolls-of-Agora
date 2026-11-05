@@ -177,7 +177,7 @@ CREATE TABLE price_history_ohlc (
     candle_id SERIAL PRIMARY KEY,
     item_id INT NOT NULL REFERENCES item_templates(item_id) ON DELETE CASCADE,
     realm_id INT NOT NULL REFERENCES realms(realm_id) ON DELETE CASCADE,
-    bucket_timestamp VARCHAR(32) NOT NULL,
+    bucket_timestamp TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     open_price BIGINT NOT NULL CHECK (open_price > 0),
     high_price BIGINT NOT NULL CHECK (high_price >= open_price),
     low_price BIGINT NOT NULL CHECK (low_price > 0 AND low_price <= high_price),

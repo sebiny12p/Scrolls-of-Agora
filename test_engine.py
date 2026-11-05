@@ -61,6 +61,17 @@ def run_all_tests():
     print(f"[PASS] Recursive CTE RMT Tracer & Inquisitor Seizure Verified: {ban_res['message']}")
 
     # 6. Test 100-Thread Simultaneous Buyout Race Condition Attack
+    # 6A. Unsafe Naive Read (Demonstrates race-condition exploit / dirty read)
+    unsafe_res = engine.run_dupe_race_condition_attack(
+        engine.DupeStressRequest(concurrent_threads=50, locking_mode="UNSAFE_NAIVE_READ")
+    )
+    assert unsafe_res["succeeded"] > 1, f"Expected multiple race wins under naive read, got {unsafe_res['succeeded']}"
+    print(
+        f"[PASS] Unprotected Race Benchmark: {unsafe_res['succeeded']} phantom purchases granted "
+        f"({unsafe_res['items_duplicated']} dupes detected, {unsafe_res['total_duration_ms']} ms)."
+    )
+
+    # 6B. Pessimistic Row-Level Locking (Guarantees zero dupes)
     stress_res = engine.run_dupe_race_condition_attack(
         engine.DupeStressRequest(concurrent_threads=100, locking_mode="PESSIMISTIC_FOR_UPDATE")
     )

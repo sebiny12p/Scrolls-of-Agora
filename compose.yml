@@ -1,7 +1,7 @@
 services:
   postgres:
     container_name: scrolls_of_agora_pg
-    image: postgres:18
+    image: postgres:17-alpine
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-agora}
@@ -22,7 +22,7 @@ services:
 
   pgadmin:
     container_name: scrolls_of_agora_pgadmin
-    image: elestio/pgadmin:REL-9_18
+    image: dpage/pgadmin4:latest
     restart: unless-stopped
     environment:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-archon@agora.tamriel.io}
