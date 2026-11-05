@@ -13,11 +13,11 @@ INSERT INTO trade_guilds (guild_id, guild_name, alliance, banner_crest, treasury
 
 -- 2. THE 5 TAMRIEL TRADING HUBS
 INSERT INTO realms (realm_id, realm_name, province, region, map_x, map_y, controlling_guild_id, population_cap, tax_rate_bps) VALUES
-    (1, 'Wayrest',       'Stormhaven, High Rock', 'HIGH-ROCK',     18, 24, 1, 14000, 450),
-    (2, 'Elden Root',    'Grahtwood, Valenwood',  'VALENWOOD',     38, 78, 2, 14500, 400),
-    (3, 'Mournhold',     'Deshaan, Morrowind',    'MORROWIND',     82, 52, 3, 16000, 500),
-    (4, 'Imperial City', 'Cyrodiil Heartland',    'CYRODIIL',      52, 48, 4, 10000, 800),
-    (5, 'Rawl''kha',     'Reaper''s March',       'REAPERS-MARCH', 30, 64, 5, 15500, 350);
+    (1, 'Wayrest',       'Stormhaven, High Rock', 'HIGH-ROCK',     18, 22, 1, 14000, 450),
+    (2, 'Elden Root',    'Grahtwood, Valenwood',  'VALENWOOD',     44, 82, 2, 14500, 400),
+    (3, 'Mournhold',     'Deshaan, Morrowind',    'MORROWIND',     84, 48, 3, 16000, 500),
+    (4, 'Imperial City', 'Cyrodiil Heartland',    'CYRODIIL',      56, 44, 4, 10000, 800),
+    (5, 'Rawl''kha',     'Reaper''s March',       'REAPERS-MARCH', 24, 56, 5, 15500, 350);
 
 -- 3. SEALED WEEKLY KIOSK BIDS
 INSERT INTO kiosk_bids (kiosk_bid_id, realm_id, guild_id, bid_gold, status, placed_at) VALUES
