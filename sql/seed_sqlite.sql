@@ -56,7 +56,7 @@ INSERT INTO item_templates (item_id, item_name, icon_key, lore_text, category, r
     (5010, 'Draught of Aetherial Magicka',       'vial',       'Restores depleted magicka reserves during veteran trial encounters.', 'Consumable',  'Uncommon',     25, 100,  30),
     (5011, 'Dreugh Wax Tempering Resin',         'crystal',    'Legendary gold-grade upgrade resin used at the Arcane Tempering Forge.', 'Reagent',  'Epic',        400, 200,   1),
     (5012, 'Aetherial Chromium Plating',         'ore',        'Refined iridescent grains required to temper jewelry & weapons.', 'Reagent',         'Rare',        110, 500,   1),
-    (5013, 'Cracked Goblinshiv (Wash Mule Item)','dagger',     'Worthless scrap blade used by RMT gold-laundering rings to move illicit gold.', 'Weapon','Common',     5,   1,   1),
+    (5013, 'Cracked Goblinshiv',                  'dagger',     'A notched iron dagger salvaged from a goblin den, frequently traded in illicit black-market circles.', 'Weapon','Common',     5,   1,   1),
     (5014, 'Elder Scroll of Chim',               'artifact',   'Aedric prophecy parchment pulsing with uncontained temporal power.', 'Artifact',     'Mythic',    50000,   1, 100);
 
 -- 6A. EQUIPMENT SPECS

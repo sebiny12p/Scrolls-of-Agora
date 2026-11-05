@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SCROLLS OF AGORA // Relational Database Workbench &amp; Anti-Dupe Engine</title>
+  <title>Scrolls of Agora — Regional Exchange &amp; Financial Ledger</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -22,14 +22,14 @@
       </div>
       <div>
         <div class="brand-title">SCROLLS OF AGORA</div>
-        <div class="brand-sub">Relational Guild Exchange &amp; ACID Anti-Dupe Engine</div>
+        <div class="brand-sub">Regional Guild Exchange &amp; Financial Ledger</div>
       </div>
-      <span class="status-tag" id="engineBadge">ENGINE: INITIALIZING...</span>
+      <span class="status-tag" id="engineBadge">INITIALIZING...</span>
     </div>
 
     <div class="telemetry-strip">
       <div class="metric-cell">
-        <span class="metric-label">Active Orders</span>
+        <span class="metric-label">Active Listings</span>
         <span class="metric-val" id="mActiveOrders">--</span>
       </div>
       <div class="metric-cell">
@@ -37,28 +37,28 @@
         <span class="metric-val gold" id="mVolume">--</span>
       </div>
       <div class="metric-cell">
-        <span class="metric-label">Tax Burned</span>
+        <span class="metric-label">Tax Collected</span>
         <span class="metric-val crimson" id="mTaxBurn">--</span>
       </div>
       <div class="metric-cell">
-        <span class="metric-label">Escrow Locked</span>
+        <span class="metric-label">Escrow Balance</span>
         <span class="metric-val cyan" id="mEscrow">--</span>
       </div>
       <div class="metric-cell">
-        <span class="metric-label">Mint Registry</span>
-        <span class="metric-val emerald" id="mSerials">0 DUPES</span>
+        <span class="metric-label">Ledger Integrity</span>
+        <span class="metric-val emerald" id="mSerials">VERIFIED</span>
       </div>
     </div>
 
     <div class="top-actions">
-      <button class="btn btn-brass" onclick="triggerWeeklyKioskFlip()" title="Resolve sealed Guild Trader bids across Wayrest, Elden Root, Mournhold, Imperial City &amp; Rawl'kha">
-        Weekly Kiosk Flip
+      <button class="btn btn-brass" onclick="triggerWeeklyKioskFlip()" title="Evaluate sealed bids and award weekly regional trading post charters">
+        Weekly Charter Flip
       </button>
       <button class="btn" id="btnSimToggle" onclick="toggleMarketBots()">
-        Auto-Sim: <span id="simStatusText">OFF</span>
+        Market Sim: <span id="simStatusText">Off</span>
       </button>
-      <button class="btn" onclick="stepBotTick()">Step Tick</button>
-      <button class="btn" onclick="resetDatabase()">Reset Database</button>
+      <button class="btn" onclick="stepBotTick()">Simulate Trade</button>
+      <button class="btn" onclick="resetDatabase()">Reset Market Data</button>
     </div>
   </header>
 
@@ -74,11 +74,11 @@
         <!-- 1. TAMRIEL 5-HUB DECENTRALIZED KIOSK MAP -->
         <div class="map-card">
           <div class="map-topbar">
-            <span style="font-family:var(--font-display); font-size:11.5px; font-weight:700; color:var(--brass-bright); letter-spacing:1px;">
+            <span style="font-family:var(--font-display); font-size:11.5px; font-weight:700; color:var(--brass-bright); letter-spacing:0.8px;">
               REGIONAL TRADING HUBS
             </span>
             <span style="font-family:var(--font-mono); font-size:9.5px; color:var(--text-secondary);" id="activeHubHeader">
-              ALL 5 TRADING HUBS
+              ALL 5 TRADING POSTS
             </span>
           </div>
 
@@ -91,7 +91,7 @@
           </div>
 
           <div class="map-footer" id="mapFooterBar">
-            <span style="color:var(--text-secondary);">Click a City Kiosk to filter local inventory &amp; inspect controlling Trade Guild</span>
+            <span style="color:var(--text-secondary);">Select a trade hub to view regional listings and active guild charter holder.</span>
           </div>
         </div>
 
@@ -101,7 +101,7 @@
         <!-- 3. 24H OHLCV CANDLESTICK CHART -->
         <div class="canvas-container">
           <div class="chart-meta-bar">
-            <span id="chartTitleLabel">24H OHLCV TELEMETRY</span>
+            <span id="chartTitleLabel">24H PRICE ACTION</span>
             <span id="chartSpreadLabel" style="color:var(--brass-bright);">--</span>
           </div>
           <canvas id="ohlcCanvas"></canvas>
@@ -110,7 +110,7 @@
 
       <!-- ORDERBOOK HEADER WITH FAST HUB FILTER PILLS -->
       <div class="pane-header">
-        <div class="pane-title" id="orderbookPaneTitle">Decentralized Guild Trader Orderbook</div>
+        <div class="pane-title" id="orderbookPaneTitle">Tamriel Exchange Order Book</div>
         <div class="hub-pills" id="hubFilterPills"></div>
       </div>
 
@@ -120,13 +120,13 @@
           <thead>
             <tr>
               <th style="width:46px;">Order</th>
-              <th>Item / Cryptographic Serial</th>
-              <th>Combat / Alchemy Spec</th>
-              <th>City Kiosk (Guild Lease)</th>
-              <th>TTC Cross-City Radar</th>
-              <th>Current Escrow Bid</th>
-              <th>Instant Buyout</th>
-              <th style="text-align:right;">Atomic Settlement</th>
+              <th>Item &amp; Serial</th>
+              <th>Properties</th>
+              <th>Trading Post &amp; Guild</th>
+              <th>Regional Arbitrage</th>
+              <th>Current Bid</th>
+              <th>Buyout Price</th>
+              <th style="text-align:right;">Action</th>
             </tr>
           </thead>
           <tbody id="orderbookTbody"></tbody>
@@ -134,13 +134,13 @@
       </div>
     </div>
 
-    <!-- RIGHT ZONE: ACTIVE CHARACTER + 20-SLOT RPG BAG + FORGE / DUPE / INQUISITOR WORKBENCHES -->
+    <!-- RIGHT ZONE: ACTIVE CHARACTER + 20-SLOT RPG BAG + WORKBENCHES -->
     <div class="right-zone">
 
       <!-- ACTIVE CHARACTER & WALLET -->
       <div class="pane-header">
-        <div class="pane-title">Active Merchant Session</div>
-        <span style="font-family:var(--font-mono); font-size:9.5px; color:var(--emerald);">ACID WALLET ESCROW</span>
+        <div class="pane-title">Active Trader Account</div>
+        <span style="font-family:var(--font-mono); font-size:9.5px; color:var(--emerald);">SECURE ESCROW ACTIVE</span>
       </div>
 
       <div class="char-box">
@@ -149,11 +149,11 @@
         </div>
         <div class="wallet-bar">
           <div class="wallet-pill">
-            <span style="color:var(--text-secondary);">LIQUID GOLD</span>
+            <span style="color:var(--text-secondary); font-size:10px;">AVAILABLE GOLD</span>
             <span style="color:var(--brass-bright); font-weight:700;" id="activeLiquidGold">--</span>
           </div>
           <div class="wallet-pill">
-            <span style="color:var(--text-secondary);">ESCROW LOCKED</span>
+            <span style="color:var(--text-secondary); font-size:10px;">HELD IN ESCROW</span>
             <span style="color:var(--cyan); font-weight:700;" id="activeEscrowGold">--</span>
           </div>
         </div>
@@ -162,32 +162,46 @@
       <!-- 20-SLOT PHYSICAL INVENTORY BAG GRID -->
       <div class="bag-section">
         <div style="display:flex; justify-content:space-between; align-items:center;">
-          <div class="pane-title" style="font-size:10px;">Character Inventory Bag (20 Slots)</div>
-          <span style="font-family:var(--font-mono); font-size:9.5px; color:var(--text-dim);">CLICK BAG ITEM TO LIST OR TEMPER</span>
+          <div class="pane-title" style="font-size:10px;">Trader Inventory (20 Slots)</div>
+          <span style="font-family:var(--font-mono); font-size:9px; color:var(--text-dim);">CLICK ITEM TO LIST OR REFINE</span>
         </div>
 
         <div class="bag-grid" id="inventoryBagGrid"></div>
 
         <!-- Quick-List & Arcane Forge Drawer when clicking an un-escrowed item in bag -->
         <div class="list-drawer" id="listDrawer">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
             <strong id="listItemTitle" style="font-size:11.5px; color:var(--brass-bright);">Selected Item</strong>
-            <span style="font-family:var(--font-mono); font-size:9.5px; cursor:pointer; color:var(--text-dim);" onclick="closeListDrawer()">[CLOSE]</span>
+            <span style="font-family:var(--font-mono); font-size:10px; cursor:pointer; color:var(--text-dim);" onclick="closeListDrawer()">Cancel</span>
           </div>
 
-          <!-- Row 1: List on selected City Kiosk -->
-          <div style="display:grid; grid-template-columns: 1.1fr 0.8fr 0.8fr auto; gap:5px; margin-bottom:6px;">
-            <select id="listHubSelect" style="background:var(--bg-slot); border:1px solid var(--border-mid); color:var(--text-primary); font-family:var(--font-mono); font-size:10.5px; padding:5px;"></select>
-            <input type="number" id="listStartPrice" placeholder="Start Bid" style="background:var(--bg-slot); border:1px solid var(--border-mid); color:#fff; padding:5px 6px; font-family:var(--font-mono); font-size:11px; width:100%;" />
-            <input type="number" id="listBuyoutPrice" placeholder="Buyout" style="background:var(--bg-slot); border:1px solid var(--border-mid); color:#fff; padding:5px 6px; font-family:var(--font-mono); font-size:11px; width:100%;" />
-            <button class="btn btn-brass" onclick="submitListItem()">Post</button>
+          <!-- Section 1: Post to Market -->
+          <div style="display:flex; flex-direction:column; gap:5px; margin-bottom:8px;">
+            <div>
+              <label style="display:block; font-size:9px; font-family:var(--font-mono); color:var(--text-dim); margin-bottom:2px; text-transform:uppercase;">Trading Post</label>
+              <select id="listHubSelect" style="width:100%; background:var(--bg-slot); border:1px solid var(--border-mid); color:var(--text-primary); font-family:var(--font-mono); font-size:10.5px; padding:5px; outline:none;"></select>
+            </div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr auto; gap:6px; align-items:flex-end;">
+              <div>
+                <label style="display:block; font-size:9px; font-family:var(--font-mono); color:var(--text-dim); margin-bottom:2px; text-transform:uppercase;">Start Bid (g)</label>
+                <input type="number" id="listStartPrice" placeholder="Start" style="width:100%; background:var(--bg-slot); border:1px solid var(--border-mid); color:#fff; padding:5px 6px; font-family:var(--font-mono); font-size:11px; outline:none;" />
+              </div>
+              <div>
+                <label style="display:block; font-size:9px; font-family:var(--font-mono); color:var(--text-dim); margin-bottom:2px; text-transform:uppercase;">Buyout (g)</label>
+                <input type="number" id="listBuyoutPrice" placeholder="Buyout" style="width:100%; background:var(--bg-slot); border:1px solid var(--border-mid); color:#fff; padding:5px 6px; font-family:var(--font-mono); font-size:11px; outline:none;" />
+              </div>
+              <button class="btn btn-brass" style="height:27px; padding:0 12px; font-size:10px;" onclick="submitListItem()">List</button>
+            </div>
           </div>
 
-          <!-- Row 2: Temper & Bind Glyph at Arcane Forge (Atomic Multi-Table Craft) -->
-          <div id="temperRow" style="display:grid; grid-template-columns: 1fr auto; gap:6px; padding-top:6px; border-top:1px solid var(--border-dim);">
-            <select id="forgeGlyphSelect" style="background:var(--bg-slot); border:1px solid var(--purple); color:#e9d5ff; font-family:var(--font-mono); font-size:10.5px; padding:5px;"></select>
-            <button class="btn" style="border-color:var(--purple); color:#e9d5ff;" onclick="submitTemperItem()">
-              Temper &amp; Enchant (3,500g)
+          <!-- Section 2: Arcane Refinement & Tempering -->
+          <div id="temperRow" style="padding-top:6px; border-top:1px solid var(--border-dim); display:grid; grid-template-columns: 1fr auto; gap:6px; align-items:flex-end;">
+            <div>
+              <label style="display:block; font-size:9px; font-family:var(--font-mono); color:var(--purple); margin-bottom:2px; text-transform:uppercase;">Arcane Enchantment Glyph</label>
+              <select id="forgeGlyphSelect" style="width:100%; background:var(--bg-slot); border:1px solid var(--purple); color:#e9d5ff; font-family:var(--font-mono); font-size:10.5px; padding:5px; outline:none;"></select>
+            </div>
+            <button class="btn" style="height:27px; border-color:var(--purple); color:#e9d5ff; font-size:10px; white-space:nowrap; padding:0 10px;" onclick="submitTemperItem()">
+              Refine (3,500g)
             </button>
           </div>
         </div>
@@ -195,86 +209,100 @@
 
       <!-- SUB-TABS FOR RIGHT BOTTOM -->
       <div class="sub-tabs">
-        <button class="sub-tab active" onclick="switchRightTab('kiosk', this)">Guild Kiosk Bids</button>
-        <button class="sub-tab" onclick="switchRightTab('dupe', this)">100-Thread Dupe Lab</button>
-        <button class="sub-tab" onclick="switchRightTab('rmt', this)">RMT Mule Graph</button>
-        <button class="sub-tab" onclick="switchRightTab('sql', this)">Relational Queries &amp; Plans</button>
+        <button class="sub-tab active" onclick="switchRightTab('kiosk', this)">Trading Post Leases</button>
+        <button class="sub-tab" onclick="switchRightTab('dupe', this)">Concurrency Lab</button>
+        <button class="sub-tab" onclick="switchRightTab('rmt', this)">Fraud Trace</button>
+        <button class="sub-tab" onclick="switchRightTab('sql', this)">SQL Analytics</button>
       </div>
 
       <!-- RIGHT BOTTOM CONTENT -->
       <div class="right-bottom-body">
 
-        <!-- SUB-PANE 1: DECENTRALIZED GUILD KIOSK SEALED BIDDING & SETTLEMENT TAPE -->
+        <!-- SUB-PANE 1: TRADING POST CHARTER AUCTIONS & LEDGER -->
         <div id="rtab-kiosk">
           <div style="background:var(--bg-panel); border:1px solid var(--border-brass); padding:10px 12px; margin-bottom:10px;">
             <div style="font-family:var(--font-display); font-size:11.5px; font-weight:700; color:var(--brass-bright); margin-bottom:4px;">
-              SEALED WEEKLY KIOSK AUCTION (BLIND BIDDING PROTOCOL)
+              Weekly Trading Post Charter Auctions
             </div>
-            <div style="font-family:var(--font-mono); font-size:10px; color:var(--text-secondary); margin-bottom:8px; line-height:1.4;">
-              Trade Guilds submit blind bids on Wayrest, Elden Root, Mournhold, Imperial City &amp; Rawl'kha. Winning guild earns 50% of future city kiosk taxes.
+            <div style="font-size:10.5px; color:var(--text-secondary); margin-bottom:8px; line-height:1.4;">
+              Trade guilds submit confidential sealed bids to secure regional trading posts. The charter holder earns 50% of all market transaction taxes collected at their post.
             </div>
-            <div style="display:grid; grid-template-columns: 1fr 1fr 0.9fr auto; gap:5px;">
-              <select id="kioskBidHub" style="background:var(--bg-slot); border:1px solid var(--border-mid); color:#fff; font-family:var(--font-mono); font-size:10px; padding:5px;"></select>
-              <select id="kioskBidGuild" style="background:var(--bg-slot); border:1px solid var(--border-mid); color:#fff; font-family:var(--font-mono); font-size:10px; padding:5px;"></select>
-              <input type="number" id="kioskBidAmount" value="980000" step="50000" style="background:var(--bg-slot); border:1px solid var(--border-mid); color:var(--brass-bright); font-family:var(--font-mono); font-size:10.5px; padding:5px; width:100%;" />
-              <button class="btn btn-brass" style="padding:5px 8px;" onclick="submitKioskSealedBid()">Bid</button>
+            <div style="display:flex; flex-direction:column; gap:6px;">
+              <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px;">
+                <div>
+                  <label style="display:block; font-size:9px; font-family:var(--font-mono); color:var(--text-dim); margin-bottom:2px; text-transform:uppercase;">Trade Hub</label>
+                  <select id="kioskBidHub" style="width:100%; background:var(--bg-slot); border:1px solid var(--border-mid); color:#fff; font-family:var(--font-mono); font-size:10.5px; padding:5px; outline:none;"></select>
+                </div>
+                <div>
+                  <label style="display:block; font-size:9px; font-family:var(--font-mono); color:var(--text-dim); margin-bottom:2px; text-transform:uppercase;">Bidding Guild</label>
+                  <select id="kioskBidGuild" style="width:100%; background:var(--bg-slot); border:1px solid var(--border-mid); color:#fff; font-family:var(--font-mono); font-size:10.5px; padding:5px; outline:none;"></select>
+                </div>
+              </div>
+              <div style="display:grid; grid-template-columns: 1fr auto; gap:6px; align-items:flex-end;">
+                <div>
+                  <label style="display:block; font-size:9px; font-family:var(--font-mono); color:var(--text-dim); margin-bottom:2px; text-transform:uppercase;">Sealed Bid Amount (Gold)</label>
+                  <input type="number" id="kioskBidAmount" value="980000" step="50000" style="width:100%; background:var(--bg-slot); border:1px solid var(--border-mid); color:var(--brass-bright); font-family:var(--font-mono); font-size:11px; font-weight:600; padding:5px 8px; outline:none;" />
+                </div>
+                <button class="btn btn-brass" style="height:28px; padding:0 14px; font-size:10px; white-space:nowrap;" onclick="submitKioskSealedBid()">Submit Bid</button>
+              </div>
             </div>
           </div>
 
           <div style="font-family:var(--font-mono); font-size:10px; color:var(--text-dim); text-transform:uppercase; margin-bottom:6px;">
-            Recent Double-Entry Ledger Settlements
+            Audit Journal &amp; Recent Settlements
           </div>
           <div id="ledgerTapeList" style="display:flex; flex-direction:column; gap:6px;"></div>
         </div>
 
-        <!-- SUB-PANE 2: CONCURRENCY RACE-CONDITION DUPE LAB -->
+        <!-- SUB-PANE 2: CONCURRENCY BENCHMARK -->
         <div id="rtab-dupe" style="display:none;">
-          <div style="font-family:var(--font-mono); font-size:10.5px; color:var(--text-secondary); margin-bottom:8px; line-height:1.45;">
-            Mints a 1-of-1 Mythic <strong>Elder Scroll of Chim (+5 Tempered)</strong> and releases <strong>100 simultaneous buyer threads</strong> across a hardware barrier hitting the database at the exact same microsecond:
+          <div style="font-size:10.5px; color:var(--text-secondary); margin-bottom:8px; line-height:1.45;">
+            Stress test concurrent purchases against a single unique item (<strong>Elder Scroll of Chim</strong>). 
+            Fires <strong>100 simultaneous transactions</strong> across parallel threads to test transaction isolation.
           </div>
 
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:10px;">
-            <button class="btn btn-brass" style="width:100%;" onclick="executeStressTest('PESSIMISTIC_FOR_UPDATE')">
-              SELECT ... FOR UPDATE
+            <button class="btn btn-brass" style="width:100%; padding:7px 5px; font-size:10px;" onclick="executeStressTest('PESSIMISTIC_FOR_UPDATE')">
+              Row-Level Lock (FOR UPDATE)
             </button>
-            <button class="btn" style="width:100%; border-color:rgba(239,68,68,0.5); color:#fca5a5;" onclick="executeStressTest('UNSAFE_NAIVE_READ')">
-              Simulate Unprotected Race
+            <button class="btn" style="width:100%; padding:7px 5px; font-size:10px; border-color:rgba(239,68,68,0.5); color:#fca5a5;" onclick="executeStressTest('UNSAFE_NAIVE_READ')">
+              Uncoordinated Reads (Race)
             </button>
           </div>
 
           <div id="stressOutputArea">
-            <div style="font-family:var(--font-mono); font-size:10.5px; color:var(--text-dim); border:1px dashed var(--border-dim); padding:14px; text-align:center;">
-              SELECT A LOCKING PROTOCOL ABOVE TO FIRE 100 CONCURRENT BUYOUT THREADS
+            <div style="font-size:10.5px; color:var(--text-dim); border:1px dashed var(--border-dim); padding:16px; text-align:center;">
+              Select a concurrency protocol above to launch 100 simultaneous transactions.
             </div>
           </div>
         </div>
 
-        <!-- SUB-PANE 3: INQUISITOR RMT GOLD-LAUNDERING RECURSIVE GRAPH TRACER -->
+        <!-- SUB-PANE 3: WASH-TRADE & FRAUD DETECTION -->
         <div id="rtab-rmt" style="display:none;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px; margin-bottom:8px;">
             <div>
               <div style="font-family:var(--font-display); font-size:11.5px; font-weight:700; color:#fca5a5;">
-                WITH RECURSIVE // RMT MULE RING TRACER
+                Wash-Trading &amp; Laundering Network
               </div>
-              <div style="font-family:var(--font-mono); font-size:9.5px; color:var(--text-secondary);">
-                Traces dirty gold laundered via &gt;15x inflated common junk items
+              <div style="font-size:9.5px; color:var(--text-secondary); margin-top:2px;">
+                Recursive query detects suspicious transfers through inflated low-value items.
               </div>
             </div>
-            <button class="btn" style="border-color:var(--crimson); color:#fca5a5;" onclick="executeInquisitorBan()">
-              Ban Ring &amp; Seize Gold
+            <button class="btn" style="border-color:var(--crimson); color:#fca5a5; white-space:nowrap; padding:4px 9px; font-size:10px;" onclick="executeInquisitorBan()">
+              Freeze Ring &amp; Confiscate Gold
             </button>
           </div>
           <div id="rmtGraphContainer"></div>
         </div>
 
-        <!-- SUB-PANE 4: LIVE SQL & RELATIONAL ALGEBRA ENGINE -->
+        <!-- SUB-PANE 4: SQL ANALYTICS & QUERY PLANS -->
         <div id="rtab-sql" style="display:none;">
-          <div style="display:flex; gap:4px; flex-wrap:wrap; margin-bottom:10px;">
-            <button class="btn" style="padding:4px 8px; font-size:9.5px;" onclick="loadQueryInspector('q5_cross_realm_arbitrage')">TTC Arbitrage</button>
-            <button class="btn" style="padding:4px 8px; font-size:9.5px;" onclick="loadQueryInspector('q4_realm_tax_burn')">5-Hub Tax Burn</button>
-            <button class="btn" style="padding:4px 8px; font-size:9.5px;" onclick="loadQueryInspector('q6_rmt_anomaly_detection')">RMT Wash Trades</button>
-            <button class="btn" style="padding:4px 8px; font-size:9.5px;" onclick="loadQueryInspector('q7_whale_leaderboard')">Whale Rank</button>
-            <button class="btn" style="padding:4px 8px; font-size:9.5px;" onclick="loadQueryInspector('q3_market_scarcity_diff')">Scarcity (−)</button>
+          <div style="display:flex; gap:5px; flex-wrap:wrap; margin-bottom:10px;">
+            <button class="btn" style="padding:4px 8px; font-size:9.5px;" onclick="loadQueryInspector('q5_cross_realm_arbitrage')">Cross-City Arbitrage</button>
+            <button class="btn" style="padding:4px 8px; font-size:9.5px;" onclick="loadQueryInspector('q4_realm_tax_burn')">Regional Tax Revenue</button>
+            <button class="btn" style="padding:4px 8px; font-size:9.5px;" onclick="loadQueryInspector('q6_rmt_anomaly_detection')">Wash-Trade Flags</button>
+            <button class="btn" style="padding:4px 8px; font-size:9.5px;" onclick="loadQueryInspector('q7_whale_leaderboard')">Wealth Leaderboard</button>
+            <button class="btn" style="padding:4px 8px; font-size:9.5px;" onclick="loadQueryInspector('q3_market_scarcity_diff')">Market Scarcity</button>
           </div>
           <div id="sqlInspectorOutput"></div>
         </div>
