@@ -1,0 +1,34 @@
+services:
+  postgres:
+    container_name: scrolls_of_agora_pg
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-agora}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ScrollsOfAgora!2026}
+      POSTGRES_DB: ${POSTGRES_DB:-scrolls_of_agora}
+    ports:
+      - "${POSTGRES_PORT:-5435}:5432"
+    volumes:
+      - ./sql/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      - ./sql/transactions.sql:/docker-entrypoint-initdb.d/02_transactions.sql:ro
+      - ./sql/seed.sql:/docker-entrypoint-initdb.d/03_seed.sql:ro
+      - ./sql:/sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-agora} -d $${POSTGRES_DB:-scrolls_of_agora}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  pgadmin:
+    container_name: scrolls_of_agora_pgadmin
+    image: elestio/pgadmin:REL-9_18
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-archon@agora.tamriel.io}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-root}
+    ports:
+      - "${PGADMIN_PORT:-5055}:80"
+    depends_on:
+      postgres:
+        condition: service_healthy
