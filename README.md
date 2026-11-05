@@ -8,7 +8,7 @@
 
 ## 1. Overview & Systems Architecture
 
-Virtual economies—such as those in *The Elder Scrolls Online*, *World of Warcraft*, and *EVE Online*—present unique relational database challenges: localized regional market hubs, high-velocity orderbooks, and the catastrophic risk of race-condition asset duplication ("duping").
+Virtual economies—such as those in *The Elder Scrolls Online* and *EVE Online*—present unique relational database challenges: localized regional market hubs, high-velocity orderbooks, and the catastrophic risk of race-condition asset duplication ("duping").
 
 **Scrolls of Agora** is a relational transaction engine, multi-hub partitioned orderbook, and double-entry financial ledger engineered to maintain strict mathematical and transactional consistency under high-concurrency contention:
 
