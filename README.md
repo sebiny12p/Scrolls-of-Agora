@@ -17,7 +17,7 @@ Virtual economies—such as those in *The Elder Scrolls Online*, *World of Warcr
 3. **Partitioned Regional Orderbooks:** Models 5 independent trading hubs (**Wayrest**, **Elden Root**, **Mournhold**, **Imperial City**, **Rawl'kha**) with localized tax rates, sealed-bid kiosk lease auctions, and cross-city floor-price arbitrage scanners.
 4. **True Double-Entry General Ledger:** Implements balanced journal entries (`ledger_journal`) across `PLAYER_LIQUID`, `PLAYER_ESCROW`, `GUILD_TREASURY`, and `SYSTEM_SINK` accounts, enforcing the strict mathematical invariance $\sum \text{amount} = 0$ across all transaction groups (buyouts, escrow locks, outbid refunds, forge fees, and kiosk leases).
 5. **Cycle-Safe Recursive CTE Graph Traversal (`WITH RECURSIVE`):** Multi-hop cycle and wash-trade detection tracing illicit currency flows through Real-Money Trading (RMT) mule chains, guarded against infinite recursion via SQL-level path-traversal tracking.
-6. **Formal Relational Normalization:** 13 tables decomposed into **Boyce-Codd Normal Form (BCNF)** and **Third Normal Form (3NF)** with ISA subtype specialization (`item_templates` $\to$ `equipment_specs` / `consumable_specs`) and partial B-Tree covering indexes.
+6. **Formal Relational Normalization:** 15 tables decomposed into **Boyce-Codd Normal Form (BCNF)** and **Third Normal Form (3NF)** with ISA subtype specialization (`item_templates` $\to$ `equipment_specs` / `consumable_specs`) and partial B-Tree covering indexes.
 7. **Dual-Engine Relational Abstraction:** Native support for both **PostgreSQL** (Docker Compose connection pool with PL/pgSQL procedures) and zero-config **SQLite 3** (Write-Ahead Logging with immediate 2PL serialization).
 
 ---
@@ -94,16 +94,17 @@ In-depth database design, relational algebra proofs, and concurrency analyses ar
 
 ---
 
-## 4. Entity-Relationship (ER) Architecture (13 Relations)
+## 4. Entity-Relationship (ER) Architecture (15 Relations)
 
 ```mermaid
 erDiagram
-    TRADE_GUILDS ||--o{ REALMS : "controls_kiosk"
+    TRADE_GUILDS |o--o{ REALMS : "controls_kiosk"
     TRADE_GUILDS ||--o{ KIOSK_BIDS : "submits_bid"
-    TRADE_GUILDS ||--o{ PLAYERS : "enrolls"
+    TRADE_GUILDS |o--o{ PLAYERS : "enrolls"
     REALMS ||--o{ KIOSK_BIDS : "auctions_lease"
     REALMS ||--o{ PLAYERS : "hosts"
     REALMS ||--o{ AUCTION_LISTINGS : "operates_kiosk"
+    REALMS ||--o{ PRICE_HISTORY_OHLC : "records_candles"
 
     PLAYERS ||--o{ INVENTORY_ITEMS : "owns"
     PLAYERS ||--o{ AUCTION_LISTINGS : "sells"
@@ -120,8 +121,20 @@ erDiagram
     INVENTORY_ITEMS ||--o| AUCTION_LISTINGS : "escrowed_in"
     AUCTION_LISTINGS ||--o{ AUCTION_BIDS : "receives"
     AUCTION_LISTINGS ||--o| LEDGER_TRANSACTIONS : "settles_in"
-    LEDGER_JOURNAL }o--|| PLAYERS : "balances_wallets"
+
+    LEDGER_JOURNAL {
+        bigint entry_id PK
+        string tx_group_id
+        string event_type
+        string account_type
+        string account_id
+        bigint amount
+        bigint balance_after
+        string description
+    }
 ```
+
+> **Note on General Ledger Architecture:** `ledger_journal` is an append-only double-entry ledger enforcing zero-sum invariance ($\sum \text{amount} = 0$). It connects polymorphically across `PLAYER_LIQUID`, `PLAYER_ESCROW`, `GUILD_TREASURY`, and `SYSTEM_SINK` accounts via `account_type` and `account_id` rather than a single static foreign key.
 
 ---
 
@@ -135,8 +148,8 @@ The engine provides 7 operational and analytical queries with formal relational 
 | **Q2** | $\bowtie$ | 5-Table ISA subtype join retrieving active equipment with combat stats, seller name, and buyout price. |
 | **Q3** | $-$ | Universal set difference (`NOT EXISTS`) finding rare/mythic items with zero active kiosk listings. |
 | **Q4** | $\gamma$ | Grouping and multi-table aggregation computing gross trading volume and tax burn per regional hub. |
-| **Q5** | $\bowtie_{self}, \sigma$ | Self-join on floor price CTE highlighting cross-hub arbitrage spreads with $>15\%$ ROI. |
-| **Q6** | $\bowtie_\theta$ | Non-equi theta join flagging RMT wash-trading transactions ($>15\times$ base vendor value). |
+| **Q5** | $\bowtie_{self}, \sigma$ | Self-join on floor price CTE highlighting cross-hub arbitrage spreads with $>25\%$ profit margin. |
+| **Q6** | $\bowtie_\theta$ | Non-equi theta join flagging anomalous transactions ($>10\times$ vendor value or $>2.5\times$ market average). |
 | **Q7** | Window ($RANK$) | Window function ranking merchant whales by liquid + escrow gold within their alliance faction. |
 
 ---
