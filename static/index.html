@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SCROLLS OF AGORA // Decentralized Guild Exchange &amp; Anti-Dupe Engine</title>
+  <title>SCROLLS OF AGORA // Tamriel Decentralized Guild Exchange &amp; Anti-Dupe Engine</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -25,6 +25,7 @@
       --emerald: #10b981;
       --crimson: #ef4444;
       --cyan: #38bdf8;
+      --purple: #a855f7;
 
       /* Authentic RPG Rarity Palette */
       --r-Mythic: #ff2e55;
@@ -68,14 +69,14 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0 20px;
+      padding: 0 18px;
       flex-shrink: 0;
     }
 
     .brand-group {
       display: flex;
       align-items: center;
-      gap: 16px;
+      gap: 14px;
     }
 
     .brand-crest {
@@ -98,7 +99,7 @@
 
     .brand-title {
       font-family: var(--font-display);
-      font-size: 16px;
+      font-size: 15.5px;
       font-weight: 800;
       letter-spacing: 2px;
       color: var(--text-primary);
@@ -106,9 +107,9 @@
 
     .brand-sub {
       font-family: var(--font-mono);
-      font-size: 10.5px;
+      font-size: 10px;
       color: var(--text-secondary);
-      letter-spacing: 0.5px;
+      letter-spacing: 0.4px;
       text-transform: uppercase;
     }
 
@@ -127,18 +128,18 @@
     .telemetry-strip {
       display: flex;
       align-items: center;
-      gap: 24px;
+      gap: 20px;
     }
 
     .metric-cell {
       display: flex;
       flex-direction: column;
       border-left: 1px solid var(--border-dim);
-      padding-left: 16px;
+      padding-left: 14px;
     }
 
     .metric-label {
-      font-size: 9.5px;
+      font-size: 9px;
       font-family: var(--font-mono);
       text-transform: uppercase;
       letter-spacing: 0.8px;
@@ -147,7 +148,7 @@
 
     .metric-val {
       font-family: var(--font-mono);
-      font-size: 13.5px;
+      font-size: 13px;
       font-weight: 700;
       color: var(--text-primary);
     }
@@ -161,7 +162,7 @@
     .top-actions {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
     }
 
     .btn {
@@ -169,9 +170,9 @@
       border: 1px solid var(--border-mid);
       color: var(--text-primary);
       font-family: var(--font-mono);
-      font-size: 11px;
+      font-size: 10.5px;
       font-weight: 600;
-      padding: 7px 12px;
+      padding: 6px 11px;
       cursor: pointer;
       letter-spacing: 0.4px;
       text-transform: uppercase;
@@ -200,11 +201,11 @@
       color: var(--emerald);
     }
 
-    /* MAIN 3-ZONE WORKSPACE */
+    /* MAIN 2-ZONE WORKSPACE */
     .workspace {
       flex: 1;
       display: grid;
-      grid-template-columns: 1fr 410px;
+      grid-template-columns: 1fr 440px;
       gap: 1px;
       background: var(--border-dim);
       overflow: hidden;
@@ -226,10 +227,10 @@
 
     /* SECTION HEADERS */
     .pane-header {
-      height: 38px;
+      height: 36px;
       background: var(--bg-surface);
       border-bottom: 1px solid var(--border-dim);
-      padding: 0 16px;
+      padding: 0 14px;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -238,14 +239,14 @@
 
     .pane-title {
       font-family: var(--font-mono);
-      font-size: 11px;
+      font-size: 10.5px;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 1px;
       color: var(--text-secondary);
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
     }
 
     .pane-title::before {
@@ -256,19 +257,126 @@
       display: inline-block;
     }
 
-    /* TOP LEFT: MARKET CHART + ITEM INSPECTION BAR */
-    .chart-deck {
-      height: 215px;
+    /* TOP LEFT DECK: TAMRIEL 5-HUB INTERACTIVE MAP + 24H OHLCV CANVAS CHART */
+    .top-deck {
+      height: 235px;
       background: var(--bg-panel);
       border-bottom: 1px solid var(--border-dim);
       display: grid;
-      grid-template-columns: 290px 1fr;
+      grid-template-columns: 440px 255px 1fr;
       flex-shrink: 0;
     }
 
+    /* TAMRIEL KIOSK MAP PANEL */
+    .map-card {
+      border-right: 1px solid var(--border-dim);
+      position: relative;
+      background:
+        radial-gradient(circle at 52% 48%, rgba(239, 68, 68, 0.08) 0%, transparent 45%),
+        radial-gradient(circle at 25% 40%, rgba(212, 168, 83, 0.07) 0%, transparent 65%),
+        #080a0f;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      overflow: hidden;
+    }
+
+    .map-topbar {
+      padding: 8px 12px;
+      background: rgba(13, 16, 23, 0.85);
+      border-bottom: 1px solid var(--border-dim);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 3;
+    }
+
+    .map-canvas-area {
+      position: relative;
+      flex: 1;
+    }
+
+    .hub-node {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      z-index: 4;
+      transition: transform 0.15s ease;
+    }
+
+    .hub-node:hover {
+      transform: translate(-50%, -50%) scale(1.12);
+    }
+
+    .hub-pin {
+      width: 14px;
+      height: 14px;
+      background: var(--bg-panel);
+      border: 2px solid var(--brass);
+      transform: rotate(45deg);
+      box-shadow: 0 0 10px rgba(212, 168, 83, 0.45);
+      transition: all 0.15s ease;
+    }
+
+    .hub-node.active .hub-pin {
+      background: var(--brass-bright);
+      border-color: #fff;
+      box-shadow: 0 0 16px var(--brass-bright);
+    }
+
+    .hub-node.warzone .hub-pin {
+      border-color: var(--crimson);
+      box-shadow: 0 0 12px rgba(239, 68, 68, 0.6);
+    }
+
+    .hub-node.warzone.active .hub-pin {
+      background: var(--crimson);
+      border-color: #fff;
+    }
+
+    .hub-label {
+      margin-top: 5px;
+      font-family: var(--font-display);
+      font-size: 10.5px;
+      font-weight: 700;
+      color: var(--text-primary);
+      background: rgba(7, 8, 12, 0.88);
+      border: 1px solid var(--border-mid);
+      padding: 1px 6px;
+      white-space: nowrap;
+      letter-spacing: 0.5px;
+    }
+
+    .hub-node.active .hub-label {
+      border-color: var(--brass);
+      color: var(--brass-bright);
+    }
+
+    .hub-sub {
+      font-family: var(--font-mono);
+      font-size: 8.5px;
+      color: var(--text-secondary);
+    }
+
+    .map-footer {
+      padding: 6px 12px;
+      background: rgba(13, 16, 23, 0.92);
+      border-top: 1px solid var(--border-dim);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      z-index: 3;
+    }
+
+    /* SELECTED ITEM INSPECTION CARD */
     .selected-item-card {
       border-right: 1px solid var(--border-dim);
-      padding: 16px;
+      padding: 12px 14px;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
@@ -277,14 +385,14 @@
 
     .sel-header {
       display: flex;
-      gap: 14px;
+      gap: 12px;
       align-items: flex-start;
     }
 
     /* RPG ITEM SLOT FRAME */
     .item-slot {
-      width: 48px;
-      height: 48px;
+      width: 46px;
+      height: 46px;
       background: var(--bg-slot);
       border: 1px solid var(--border-mid);
       position: relative;
@@ -302,8 +410,8 @@
     }
 
     .item-slot svg {
-      width: 32px;
-      height: 32px;
+      width: 30px;
+      height: 30px;
     }
 
     .slot-Mythic { border-color: var(--r-Mythic); box-shadow: inset 0 0 12px rgba(255, 46, 85, 0.28); }
@@ -318,10 +426,21 @@
       bottom: 2px;
       right: 4px;
       font-family: var(--font-mono);
-      font-size: 10px;
+      font-size: 9.5px;
       font-weight: 700;
       color: #fff;
       text-shadow: 0 1px 2px #000, 0 0 4px #000;
+    }
+
+    .temper-badge {
+      position: absolute;
+      bottom: 2px;
+      left: 3px;
+      font-family: var(--font-mono);
+      font-size: 8.5px;
+      font-weight: 800;
+      color: var(--brass-bright);
+      text-shadow: 0 1px 2px #000;
     }
 
     .escrow-tag {
@@ -334,7 +453,6 @@
       font-size: 8px;
       font-weight: 800;
       padding: 0 3px;
-      letter-spacing: 0.3px;
     }
 
     .text-Mythic { color: var(--r-Mythic); }
@@ -348,7 +466,7 @@
       position: relative;
       width: 100%;
       height: 100%;
-      padding: 10px 16px;
+      padding: 10px 14px;
       display: flex;
       flex-direction: column;
     }
@@ -359,14 +477,36 @@
       align-items: center;
       margin-bottom: 4px;
       font-family: var(--font-mono);
-      font-size: 11px;
+      font-size: 10.5px;
       color: var(--text-secondary);
     }
 
     canvas#ohlcCanvas {
       width: 100%;
-      height: 165px;
+      height: 185px;
       display: block;
+    }
+
+    /* HUB FILTER PILLS IN ORDERBOOK HEADER */
+    .hub-pills {
+      display: flex;
+      gap: 4px;
+    }
+
+    .hub-pill {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-mid);
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      font-size: 10px;
+      padding: 3px 8px;
+      cursor: pointer;
+    }
+
+    .hub-pill.active {
+      border-color: var(--brass);
+      color: var(--brass-bright);
+      background: rgba(212, 168, 83, 0.12);
     }
 
     /* ORDERBOOK TABLE AREA */
@@ -387,9 +527,9 @@
       background: #0c0f17;
       z-index: 10;
       text-align: left;
-      padding: 9px 14px;
+      padding: 8px 12px;
       font-family: var(--font-mono);
-      font-size: 10px;
+      font-size: 9.5px;
       text-transform: uppercase;
       letter-spacing: 0.8px;
       color: var(--text-dim);
@@ -397,7 +537,7 @@
     }
 
     table.market-table td {
-      padding: 8px 14px;
+      padding: 7px 12px;
       border-bottom: 1px solid rgba(30, 36, 51, 0.65);
       vertical-align: middle;
     }
@@ -420,47 +560,57 @@
     .item-cell {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
     }
 
     .item-cell .item-slot {
-      width: 40px;
-      height: 40px;
+      width: 38px;
+      height: 38px;
     }
 
     .item-cell .item-slot svg {
-      width: 26px;
-      height: 26px;
+      width: 24px;
+      height: 24px;
     }
 
     .item-name-line {
       font-weight: 600;
-      font-size: 13px;
+      font-size: 12.5px;
       letter-spacing: -0.1px;
     }
 
     .item-sub-line {
       font-family: var(--font-mono);
-      font-size: 10.5px;
+      font-size: 10px;
       color: var(--text-secondary);
       margin-top: 2px;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
     }
 
     .mint-badge {
       font-family: var(--font-mono);
-      font-size: 9.5px;
+      font-size: 9px;
       color: var(--text-dim);
       background: rgba(255, 255, 255, 0.03);
       border: 1px solid var(--border-dim);
       padding: 1px 5px;
     }
 
+    .ttc-arb-badge {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      font-weight: 700;
+      color: var(--emerald);
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.35);
+      padding: 1px 5px;
+    }
+
     /* RIGHT ZONE: CHARACTER WALLET & 20-SLOT INVENTORY BAG GRID */
     .char-box {
-      padding: 14px 16px;
+      padding: 10px 14px;
       background: var(--bg-panel);
       border-bottom: 1px solid var(--border-dim);
     }
@@ -469,8 +619,8 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 10px;
-      margin-bottom: 10px;
+      gap: 8px;
+      margin-bottom: 8px;
     }
 
     select.char-select {
@@ -479,9 +629,9 @@
       border: 1px solid var(--border-brass);
       color: var(--brass-bright);
       font-family: var(--font-mono);
-      font-size: 12px;
+      font-size: 11.5px;
       font-weight: 700;
-      padding: 7px 10px;
+      padding: 6px 8px;
       outline: none;
       cursor: pointer;
     }
@@ -495,17 +645,17 @@
     .wallet-pill {
       background: var(--bg-slot);
       border: 1px solid var(--border-dim);
-      padding: 7px 10px;
+      padding: 6px 10px;
       display: flex;
       justify-content: space-between;
       align-items: center;
       font-family: var(--font-mono);
-      font-size: 11.5px;
+      font-size: 11px;
     }
 
     /* 5x4 PHYSICAL INVENTORY GRID */
     .bag-section {
-      padding: 14px 16px;
+      padding: 10px 14px;
       border-bottom: 1px solid var(--border-dim);
       background: var(--bg-surface);
     }
@@ -513,8 +663,8 @@
     .bag-grid {
       display: grid;
       grid-template-columns: repeat(5, 1fr);
-      gap: 8px;
-      margin-top: 10px;
+      gap: 6px;
+      margin-top: 8px;
     }
 
     .bag-grid .item-slot {
@@ -523,18 +673,23 @@
       height: auto;
     }
 
+    .bag-grid .item-slot.selected-bag-slot {
+      outline: 2px solid var(--brass-bright);
+      box-shadow: 0 0 14px rgba(242, 201, 109, 0.5);
+    }
+
     .empty-slot {
       background: rgba(11, 13, 19, 0.55);
       border: 1px solid #161b26;
       aspect-ratio: 1 / 1;
     }
 
-    /* INLINE LIST ITEM FORM (Appears when clicking an inventory item) */
+    /* ACTION DRAWER FOR SELECTED BAG ITEM (LIST ON KIOSK OR TEMPER AT FORGE) */
     .list-drawer {
-      margin-top: 10px;
+      margin-top: 8px;
       background: var(--bg-panel);
       border: 1px solid var(--border-brass);
-      padding: 10px 12px;
+      padding: 9px 11px;
       display: none;
     }
 
@@ -542,7 +697,7 @@
       display: block;
     }
 
-    /* RIGHT BOTTOM TABS: SETTLEMENT TAPE vs CONCURRENCY DUPE LAB vs SQL ENGINE */
+    /* RIGHT BOTTOM TABS: ARCANE FORGE & KIOSK BIDS vs DUPE LAB vs INQUISITOR RMT GRAPH */
     .sub-tabs {
       display: flex;
       background: var(--bg-panel);
@@ -553,12 +708,12 @@
     .sub-tab {
       flex: 1;
       text-align: center;
-      padding: 9px 6px;
+      padding: 8px 4px;
       font-family: var(--font-mono);
-      font-size: 10px;
+      font-size: 9.5px;
       font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.6px;
+      letter-spacing: 0.4px;
       color: var(--text-secondary);
       background: transparent;
       border: none;
@@ -575,7 +730,7 @@
     .right-bottom-body {
       flex: 1;
       overflow-y: auto;
-      padding: 12px 16px;
+      padding: 12px 14px;
       background: var(--bg-void);
     }
 
@@ -584,7 +739,7 @@
       display: grid;
       grid-template-columns: repeat(20, 1fr);
       gap: 3px;
-      margin: 10px 0;
+      margin: 8px 0;
     }
 
     .thread-node {
@@ -610,12 +765,12 @@
       box-shadow: 0 0 8px var(--crimson);
     }
 
-    /* FLOATING RPG HOVER TOOLTIP (Diablo / WoW / Tarkov Style) */
+    /* FLOATING RPG HOVER TOOLTIP */
     #rpgTooltip {
       position: fixed;
       pointer-events: none;
       z-index: 9999;
-      width: 310px;
+      width: 320px;
       background: rgba(10, 12, 18, 0.97);
       border: 1px solid var(--brass);
       box-shadow: 0 16px 40px rgba(0, 0, 0, 0.85), inset 0 0 20px rgba(212, 168, 83, 0.08);
@@ -709,14 +864,14 @@
       </div>
       <div>
         <div class="brand-title">SCROLLS OF AGORA</div>
-        <div class="brand-sub">Decentralized Guild Exchange &amp; Pessimistic Lock Engine</div>
+        <div class="brand-sub">Tamriel Decentralized Guild Kiosks &amp; Anti-Dupe Lock Engine</div>
       </div>
-      <span class="status-tag">SELECT ... FOR UPDATE // ACTIVE</span>
+      <span class="status-tag" id="engineBadge">SELECT ... FOR UPDATE // ACTIVE</span>
     </div>
 
     <div class="telemetry-strip">
       <div class="metric-cell">
-        <span class="metric-label">Orderbook Depth</span>
+        <span class="metric-label">Kiosk Listings</span>
         <span class="metric-val" id="mActiveOrders">--</span>
       </div>
       <div class="metric-cell">
@@ -724,7 +879,7 @@
         <span class="metric-val gold" id="mVolume">--</span>
       </div>
       <div class="metric-cell">
-        <span class="metric-label">Realm Tax Burned</span>
+        <span class="metric-label">Kiosk Tax Burned</span>
         <span class="metric-val crimson" id="mTaxBurn">--</span>
       </div>
       <div class="metric-cell">
@@ -732,47 +887,74 @@
         <span class="metric-val cyan" id="mEscrow">--</span>
       </div>
       <div class="metric-cell">
-        <span class="metric-label">Serial Registry</span>
+        <span class="metric-label">Mint Registry</span>
         <span class="metric-val emerald" id="mSerials">0 DUPES</span>
       </div>
     </div>
 
     <div class="top-actions">
+      <button class="btn btn-brass" onclick="triggerWeeklyKioskFlip()" title="Resolve all sealed Guild Trader bids across Wayrest, Elden Root, Mournhold, Imperial City &amp; Rawl'kha">
+        Weekly Kiosk Flip
+      </button>
       <button class="btn" id="btnSimToggle" onclick="toggleMarketBots()">
         Auto-Sim: <span id="simStatusText">OFF</span>
       </button>
       <button class="btn" onclick="stepBotTick()">Step Tick</button>
-      <button class="btn" onclick="resetDatabase()">Reset Economy</button>
+      <button class="btn" onclick="resetDatabase()">Reset World</button>
     </div>
   </header>
 
   <!-- MAIN WORKSPACE -->
   <div class="workspace">
 
-    <!-- LEFT ZONE: CHART DECK + LIVE ORDERBOOK -->
+    <!-- LEFT ZONE: TAMRIEL 5-HUB MAP + 24H CHART + LOCAL KIOSK ORDERBOOK -->
     <div class="left-zone">
 
-      <!-- TOP DECK: SELECTED ITEM + 24H OHLCV CANVAS CHART -->
-      <div class="chart-deck">
-        <div class="selected-item-card" id="selectedItemPanel">
-          <!-- Populated dynamically -->
+      <!-- TOP DECK: 5-CITY INTERACTIVE MAP + SELECTED ITEM + 24H OHLCV CANVAS CHART -->
+      <div class="top-deck">
+
+        <!-- 1. TAMRIEL 5-HUB DECENTRALIZED KIOSK MAP -->
+        <div class="map-card">
+          <div class="map-topbar">
+            <span style="font-family:var(--font-display); font-size:11.5px; font-weight:700; color:var(--brass-bright); letter-spacing:1px;">
+              TAMRIEL GUILD TRADER NETWORK
+            </span>
+            <span style="font-family:var(--font-mono); font-size:9.5px; color:var(--text-secondary);" id="activeHubHeader">
+              ALL 5 TRADING HUBS
+            </span>
+          </div>
+
+          <div class="map-canvas-area" id="tamrielMapNodes">
+            <!-- SVG Stylized Tamriel Trade Routes Background -->
+            <svg width="100%" height="100%" viewBox="0 0 440 160" preserveAspectRatio="none" style="position:absolute; inset:0; opacity:0.38;">
+              <path d="M79,38 L228,73 L360,83 M79,38 L123,99 L167,125 L228,73 L360,83 M123,99 L228,73" stroke="#6b562e" stroke-width="1.3" stroke-dasharray="4 3" fill="none"/>
+              <circle cx="228" cy="73" r="32" stroke="rgba(239,68,68,0.25)" stroke-width="1" fill="none"/>
+            </svg>
+            <!-- Dynamically populated with Wayrest, Elden Root, Mournhold, Imperial City, Rawl'kha nodes -->
+          </div>
+
+          <div class="map-footer" id="mapFooterBar">
+            <span style="color:var(--text-secondary);">Click a City Kiosk to filter local inventory &amp; inspect controlling Trade Guild</span>
+          </div>
         </div>
 
+        <!-- 2. SELECTED ITEM INSPECTION -->
+        <div class="selected-item-card" id="selectedItemPanel"></div>
+
+        <!-- 3. 24H OHLCV CANDLESTICK CHART -->
         <div class="canvas-container">
           <div class="chart-meta-bar">
-            <span id="chartTitleLabel">PRICE ACTION &amp; VOLUME DEPTH (24H OHLCV)</span>
+            <span id="chartTitleLabel">24H OHLCV TELEMETRY</span>
             <span id="chartSpreadLabel" style="color:var(--brass-bright);">--</span>
           </div>
           <canvas id="ohlcCanvas"></canvas>
         </div>
       </div>
 
-      <!-- ORDERBOOK HEADER -->
+      <!-- ORDERBOOK HEADER WITH FAST HUB FILTER PILLS -->
       <div class="pane-header">
-        <div class="pane-title">Guild Trader Active Orderbook</div>
-        <div style="font-family:var(--font-mono); font-size:10.5px; color:var(--text-dim);">
-          CLICK ANY ROW TO INSPECT 24H CANDLESTICK TELEMETRY // HOVER ICON FOR RPG SPEC SHEET
-        </div>
+        <div class="pane-title" id="orderbookPaneTitle">Decentralized Guild Trader Orderbook</div>
+        <div class="hub-pills" id="hubFilterPills"></div>
       </div>
 
       <!-- ORDERBOOK TABLE -->
@@ -780,14 +962,14 @@
         <table class="market-table">
           <thead>
             <tr>
-              <th style="width:52px;">Order</th>
+              <th style="width:46px;">Order</th>
               <th>Item / Cryptographic Serial</th>
               <th>Combat / Alchemy Spec</th>
-              <th>Realm (Cut)</th>
-              <th>Seller</th>
+              <th>City Kiosk (Guild Lease)</th>
+              <th>TTC Cross-City Radar</th>
               <th>Current Escrow Bid</th>
               <th>Instant Buyout</th>
-              <th style="text-align:right;">Execute Atomic Settlement</th>
+              <th style="text-align:right;">Atomic Settlement</th>
             </tr>
           </thead>
           <tbody id="orderbookTbody"></tbody>
@@ -795,13 +977,13 @@
       </div>
     </div>
 
-    <!-- RIGHT ZONE: ACTIVE CHARACTER + 20-SLOT RPG BAG + CONCURRENCY LAB -->
+    <!-- RIGHT ZONE: ACTIVE CHARACTER + 20-SLOT RPG BAG + FORGE / DUPE / INQUISITOR WORKBENCHES -->
     <div class="right-zone">
 
       <!-- ACTIVE CHARACTER & WALLET -->
       <div class="pane-header">
         <div class="pane-title">Active Merchant Session</div>
-        <span style="font-family:var(--font-mono); font-size:10px; color:var(--emerald);">WALLET LOCKED IN ACID</span>
+        <span style="font-family:var(--font-mono); font-size:9.5px; color:var(--emerald);">ACID WALLET ESCROW</span>
       </div>
 
       <div class="char-box">
@@ -823,48 +1005,83 @@
       <!-- 20-SLOT PHYSICAL INVENTORY BAG GRID -->
       <div class="bag-section">
         <div style="display:flex; justify-content:space-between; align-items:center;">
-          <div class="pane-title" style="font-size:10.5px;">Character Inventory Bag (20 Slots)</div>
-          <span style="font-family:var(--font-mono); font-size:10px; color:var(--text-dim);">CLICK UNLOCKED ITEM TO LIST</span>
+          <div class="pane-title" style="font-size:10px;">Character Inventory Bag (20 Slots)</div>
+          <span style="font-family:var(--font-mono); font-size:9.5px; color:var(--text-dim);">CLICK BAG ITEM TO LIST OR TEMPER</span>
         </div>
 
         <div class="bag-grid" id="inventoryBagGrid"></div>
 
-        <!-- Quick-List Drawer when clicking an un-escrowed item in bag -->
+        <!-- Quick-List & Arcane Forge Drawer when clicking an un-escrowed item in bag -->
         <div class="list-drawer" id="listDrawer">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-            <strong id="listItemTitle" style="font-size:12px; color:var(--brass-bright);">List Item</strong>
-            <span style="font-family:var(--font-mono); font-size:10px; cursor:pointer; color:var(--text-dim);" onclick="closeListDrawer()">[CLOSE]</span>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <strong id="listItemTitle" style="font-size:11.5px; color:var(--brass-bright);">Selected Item</strong>
+            <span style="font-family:var(--font-mono); font-size:9.5px; cursor:pointer; color:var(--text-dim);" onclick="closeListDrawer()">[CLOSE]</span>
           </div>
-          <div style="display:grid; grid-template-columns: 1fr 1fr auto; gap:6px;">
-            <input type="number" id="listStartPrice" placeholder="Start Bid" style="background:var(--bg-slot); border:1px solid var(--border-mid); color:#fff; padding:6px 8px; font-family:var(--font-mono); font-size:11.5px; width:100%;" />
-            <input type="number" id="listBuyoutPrice" placeholder="Buyout" style="background:var(--bg-slot); border:1px solid var(--border-mid); color:#fff; padding:6px 8px; font-family:var(--font-mono); font-size:11.5px; width:100%;" />
+
+          <!-- Row 1: List on selected City Kiosk -->
+          <div style="display:grid; grid-template-columns: 1.1fr 0.8fr 0.8fr auto; gap:5px; margin-bottom:6px;">
+            <select id="listHubSelect" style="background:var(--bg-slot); border:1px solid var(--border-mid); color:var(--text-primary); font-family:var(--font-mono); font-size:10.5px; padding:5px;"></select>
+            <input type="number" id="listStartPrice" placeholder="Start Bid" style="background:var(--bg-slot); border:1px solid var(--border-mid); color:#fff; padding:5px 6px; font-family:var(--font-mono); font-size:11px; width:100%;" />
+            <input type="number" id="listBuyoutPrice" placeholder="Buyout" style="background:var(--bg-slot); border:1px solid var(--border-mid); color:#fff; padding:5px 6px; font-family:var(--font-mono); font-size:11px; width:100%;" />
             <button class="btn btn-brass" onclick="submitListItem()">Post</button>
+          </div>
+
+          <!-- Row 2: Temper & Bind Glyph at Arcane Forge (Atomic Multi-Table Craft) -->
+          <div id="temperRow" style="display:grid; grid-template-columns: 1fr auto; gap:6px; padding-top:6px; border-top:1px solid var(--border-dim);">
+            <select id="forgeGlyphSelect" style="background:var(--bg-slot); border:1px solid var(--purple); color:#e9d5ff; font-family:var(--font-mono); font-size:10.5px; padding:5px;"></select>
+            <button class="btn" style="border-color:var(--purple); color:#e9d5ff;" onclick="submitTemperItem()">
+              Temper &amp; Enchant (3,500g)
+            </button>
           </div>
         </div>
       </div>
 
       <!-- SUB-TABS FOR RIGHT BOTTOM -->
       <div class="sub-tabs">
-        <button class="sub-tab active" onclick="switchRightTab('dupe', this)">Anti-Dupe Stress Lab</button>
-        <button class="sub-tab" onclick="switchRightTab('ledger', this)">Settlement Tape</button>
-        <button class="sub-tab" onclick="switchRightTab('sql', this)">SQL / Arbitrage</button>
+        <button class="sub-tab active" onclick="switchRightTab('kiosk', this)">Guild Kiosk Bids</button>
+        <button class="sub-tab" onclick="switchRightTab('dupe', this)">100-Thread Dupe Lab</button>
+        <button class="sub-tab" onclick="switchRightTab('rmt', this)">RMT Mule Graph</button>
+        <button class="sub-tab" onclick="switchRightTab('sql', this)">SQL / TTC</button>
       </div>
 
       <!-- RIGHT BOTTOM CONTENT -->
       <div class="right-bottom-body">
 
-        <!-- SUB-PANE 1: CONCURRENCY RACE-CONDITION DUPE LAB -->
-        <div id="rtab-dupe">
-          <div style="font-family:var(--font-mono); font-size:11px; color:var(--text-secondary); margin-bottom:10px; line-height:1.45;">
-            Mints a 1-of-1 Mythic Relic and releases <strong>100 simultaneous buyer threads</strong> across a hardware barrier at the exact same microsecond:
+        <!-- SUB-PANE 1: DECENTRALIZED GUILD KIOSK SEALED BIDDING & SETTLEMENT TAPE -->
+        <div id="rtab-kiosk">
+          <div style="background:var(--bg-panel); border:1px solid var(--border-brass); padding:10px 12px; margin-bottom:10px;">
+            <div style="font-family:var(--font-display); font-size:11.5px; font-weight:700; color:var(--brass-bright); margin-bottom:4px;">
+              SEALED WEEKLY KIOSK AUCTION (ESO BLIND BIDDING)
+            </div>
+            <div style="font-family:var(--font-mono); font-size:10px; color:var(--text-secondary); margin-bottom:8px; line-height:1.4;">
+              Trade Guilds place blind treasury bids on Wayrest, Elden Root, Mournhold, Imperial City &amp; Rawl'kha. Winning guild earns 50% of all Kiosk taxes.
+            </div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr 0.9fr auto; gap:5px;">
+              <select id="kioskBidHub" style="background:var(--bg-slot); border:1px solid var(--border-mid); color:#fff; font-family:var(--font-mono); font-size:10px; padding:5px;"></select>
+              <select id="kioskBidGuild" style="background:var(--bg-slot); border:1px solid var(--border-mid); color:#fff; font-family:var(--font-mono); font-size:10px; padding:5px;"></select>
+              <input type="number" id="kioskBidAmount" value="980000" step="50000" style="background:var(--bg-slot); border:1px solid var(--border-mid); color:var(--brass-bright); font-family:var(--font-mono); font-size:10.5px; padding:5px; width:100%;" />
+              <button class="btn btn-brass" style="padding:5px 8px;" onclick="submitKioskSealedBid()">Bid</button>
+            </div>
+          </div>
+
+          <div style="font-family:var(--font-mono); font-size:10px; color:var(--text-dim); text-transform:uppercase; margin-bottom:6px;">
+            Recent Double-Entry Ledger Settlements
+          </div>
+          <div id="ledgerTapeList" style="display:flex; flex-direction:column; gap:6px;"></div>
+        </div>
+
+        <!-- SUB-PANE 2: CONCURRENCY RACE-CONDITION DUPE LAB -->
+        <div id="rtab-dupe" style="display:none;">
+          <div style="font-family:var(--font-mono); font-size:10.5px; color:var(--text-secondary); margin-bottom:8px; line-height:1.45;">
+            Mints a 1-of-1 Mythic <strong>Elder Scroll of Chim (+5 Tempered)</strong> in Imperial City and releases <strong>100 simultaneous buyer threads</strong> across a hardware barrier at the exact same microsecond:
           </div>
 
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:10px;">
             <button class="btn btn-brass" style="width:100%;" onclick="executeStressTest('PESSIMISTIC_FOR_UPDATE')">
-              Test Pessimistic Lock
+              SELECT ... FOR UPDATE
             </button>
             <button class="btn" style="width:100%; border-color:rgba(239,68,68,0.5); color:#fca5a5;" onclick="executeStressTest('UNSAFE_NAIVE_READ')">
-              Simulate Unlocked Race
+              Simulate Unprotected Race
             </button>
           </div>
 
@@ -875,19 +1092,32 @@
           </div>
         </div>
 
-        <!-- SUB-PANE 2: IMMUTABLE DOUBLE-ENTRY SETTLEMENT TAPE -->
-        <div id="rtab-ledger" style="display:none;">
-          <div id="ledgerTapeList" style="display:flex; flex-direction:column; gap:6px;"></div>
+        <!-- SUB-PANE 3: INQUISITOR RMT GOLD-LAUNDERING RECURSIVE GRAPH TRACER -->
+        <div id="rtab-rmt" style="display:none;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <div>
+              <div style="font-family:var(--font-display); font-size:11.5px; font-weight:700; color:#fca5a5;">
+                WITH RECURSIVE // RMT MULE RING TRACER
+              </div>
+              <div style="font-family:var(--font-mono); font-size:9.5px; color:var(--text-secondary);">
+                Traces dirty gold laundered via &gt;15x inflated common junk items
+              </div>
+            </div>
+            <button class="btn" style="border-color:var(--crimson); color:#fca5a5;" onclick="executeInquisitorBan()">
+              Ban Ring &amp; Seize Gold
+            </button>
+          </div>
+          <div id="rmtGraphContainer"></div>
         </div>
 
-        <!-- SUB-PANE 3: LIVE SQL & ARBITRAGE ENGINE -->
+        <!-- SUB-PANE 4: LIVE SQL & TAMRIEL TRADE CENTRE ARBITRAGE ENGINE -->
         <div id="rtab-sql" style="display:none;">
           <div style="display:flex; gap:4px; flex-wrap:wrap; margin-bottom:10px;">
-            <button class="btn" style="padding:4px 8px; font-size:10px;" onclick="loadQueryInspector('q5_cross_realm_arbitrage')">Arbitrage</button>
-            <button class="btn" style="padding:4px 8px; font-size:10px;" onclick="loadQueryInspector('q6_rmt_anomaly_detection')">RMT Fraud</button>
-            <button class="btn" style="padding:4px 8px; font-size:10px;" onclick="loadQueryInspector('q4_realm_tax_burn')">Tax Burn</button>
-            <button class="btn" style="padding:4px 8px; font-size:10px;" onclick="loadQueryInspector('q7_whale_leaderboard')">Whale Rank</button>
-            <button class="btn" style="padding:4px 8px; font-size:10px;" onclick="loadQueryInspector('q3_market_scarcity_diff')">Scarcity (−)</button>
+            <button class="btn" style="padding:4px 8px; font-size:9.5px;" onclick="loadQueryInspector('q5_cross_realm_arbitrage')">TTC Arbitrage</button>
+            <button class="btn" style="padding:4px 8px; font-size:9.5px;" onclick="loadQueryInspector('q4_realm_tax_burn')">5-Hub Tax Burn</button>
+            <button class="btn" style="padding:4px 8px; font-size:9.5px;" onclick="loadQueryInspector('q6_rmt_anomaly_detection')">RMT Wash Trades</button>
+            <button class="btn" style="padding:4px 8px; font-size:9.5px;" onclick="loadQueryInspector('q7_whale_leaderboard')">Whale Rank</button>
+            <button class="btn" style="padding:4px 8px; font-size:9.5px;" onclick="loadQueryInspector('q3_market_scarcity_diff')">Scarcity (−)</button>
           </div>
           <div id="sqlInspectorOutput"></div>
         </div>
@@ -979,6 +1209,7 @@
     // =========================================================================
     let marketState = null;
     let activePlayerId = 1005;
+    let selectedRealmId = 0; // 0 = All 5 Tamriel Hubs
     let selectedListing = null;
     let selectedBagItem = null;
     let simTimer = null;
@@ -990,7 +1221,7 @@
       el.style.color = isErr ? '#fca5a5' : '#e6eaf2';
       el.textContent = (isErr ? '[REJECTED] ' : '[SETTLED] ') + msg;
       clearTimeout(window._nTimer);
-      window._nTimer = setTimeout(() => { el.style.display = 'none'; }, 4000);
+      window._nTimer = setTimeout(() => { el.style.display = 'none'; }, 4500);
     }
 
     // =========================================================================
@@ -999,14 +1230,15 @@
     const tooltipEl = document.getElementById('rpgTooltip');
 
     function showRpgTooltip(ev, itemData) {
+      const temperStr = itemData.temper_tier > 0 ? ` (Tempered +${itemData.temper_tier})` : '';
       const statHtml = itemData.equip_slot
-        ? `<div class="tt-stat-line">${itemData.equip_slot} Equipment</div>
-           ${itemData.attack_power > 0 ? `<div class="tt-stat-line" style="color:#f2c96d;">+${itemData.attack_power.toLocaleString()} Attack Power</div>` : ''}
+        ? `<div class="tt-stat-line">${itemData.equip_slot} Equipment ${temperStr}</div>
+           ${itemData.attack_power > 0 ? `<div class="tt-stat-line" style="color:#f2c96d;">+${itemData.attack_power.toLocaleString()} Attack Power ${itemData.bonus_power > 0 ? `(includes +${itemData.bonus_power} Temper)` : ''}</div>` : ''}
            ${itemData.armor_rating > 0 ? `<div class="tt-stat-line" style="color:#93c5fd;">+${itemData.armor_rating.toLocaleString()} Armor Rating</div>` : ''}
-           ${itemData.socket_count > 0 ? `<div class="tt-stat-line" style="color:#a3e635;">Prismatic Sockets: ${itemData.socket_count}</div>` : ''}`
+           ${itemData.socket_count > 0 ? `<div class="tt-stat-line" style="color:#a3e635;">Arcane Glyph Sockets: ${itemData.socket_count}</div>` : ''}`
         : (itemData.effect_type
             ? `<div class="tt-stat-line">Use: ${itemData.effect_type} (+${itemData.effect_potency} Potency)</div>`
-            : `<div class="tt-stat-line">Crafting &amp; Economy Reagent</div>`);
+            : `<div class="tt-stat-line">Arcane Tempering &amp; Crafting Reagent</div>`);
 
       tooltipEl.innerHTML = `
         <div class="tt-header">
@@ -1014,15 +1246,15 @@
             ${getItemSvg(itemData.icon_key)}
           </div>
           <div>
-            <div class="tt-title text-${itemData.rarity}">${itemData.item_name}</div>
+            <div class="tt-title text-${itemData.rarity}">${itemData.item_name}${temperStr}</div>
             <div class="tt-type">${itemData.rarity} ${itemData.category} // Req Lv. ${itemData.required_level}</div>
           </div>
         </div>
         ${statHtml}
-        ${itemData.enchants ? `<div class="tt-enchant">Enchanted: ${itemData.enchants}</div>` : ''}
+        ${itemData.enchants ? `<div class="tt-enchant">Bound Glyphs: ${itemData.enchants}</div>` : ''}
         ${itemData.lore_text ? `<div class="tt-lore">"${itemData.lore_text}"</div>` : ''}
         <div class="tt-serial">
-          <span>SERIAL: ${itemData.mint_serial}</span>
+          <span>MINT: ${itemData.mint_serial}</span>
           <span>VENDOR: ${itemData.base_vendor_value.toLocaleString()}g</span>
         </div>
       `;
@@ -1034,8 +1266,8 @@
       const pad = 16;
       let x = ev.clientX + pad;
       let y = ev.clientY + pad;
-      if (x + 320 > window.innerWidth) x = ev.clientX - 325;
-      if (y + 240 > window.innerHeight) y = ev.clientY - 220;
+      if (x + 330 > window.innerWidth) x = ev.clientX - 335;
+      if (y + 250 > window.innerHeight) y = ev.clientY - 230;
       tooltipEl.style.left = x + 'px';
       tooltipEl.style.top = y + 'px';
     }
@@ -1065,7 +1297,7 @@
       ctx.clearRect(0, 0, W, H);
 
       document.getElementById('chartTitleLabel').textContent =
-        `${data.item_name.toUpperCase()} // 24H OHLCV MARKET TELEMETRY`;
+        `${data.item_name.toUpperCase()} // 24H OHLCV`;
 
       if (candles.length === 0) return;
 
@@ -1078,19 +1310,18 @@
       const pctChange = (((lastC.close_price - firstC.open_price) / firstC.open_price) * 100).toFixed(1);
       const sign = pctChange >= 0 ? '+' : '';
       document.getElementById('chartSpreadLabel').innerHTML =
-        `LAST: ${lastC.close_price.toLocaleString()}g (${sign}${pctChange}%) // HIGH: ${Math.round(maxP).toLocaleString()}g`;
+        `LAST: ${lastC.close_price.toLocaleString()}g (${sign}${pctChange}%)`;
 
-      const padLeft = 8;
-      const padRight = 58;
+      const padLeft = 6;
+      const padRight = 56;
       const padTop = 8;
-      const padBot = 22;
+      const padBot = 20;
       const plotW = W - padLeft - padRight;
       const plotH = H - padTop - padBot;
 
-      // Horizontal Grid Lines
       ctx.strokeStyle = 'rgba(42, 51, 71, 0.45)';
       ctx.lineWidth = 1;
-      ctx.font = '10px JetBrains Mono';
+      ctx.font = '9.5px JetBrains Mono';
       ctx.fillStyle = '#556075';
       for (let i = 0; i <= 3; i++) {
         const y = padTop + (plotH / 3) * i;
@@ -1099,23 +1330,21 @@
         ctx.lineTo(W - padRight, y);
         ctx.stroke();
         const priceVal = Math.round(maxP - ((maxP - minP) / 3) * i);
-        ctx.fillText(priceVal.toLocaleString() + 'g', W - padRight + 6, y + 3);
+        ctx.fillText(priceVal.toLocaleString() + 'g', W - padRight + 5, y + 3);
       }
 
       const stepX = plotW / candles.length;
-      const candleW = Math.max(4, stepX * 0.56);
+      const candleW = Math.max(3.5, stepX * 0.56);
 
       candles.forEach((c, idx) => {
         const cx = padLeft + idx * stepX + stepX / 2;
         const isBull = c.close_price >= c.open_price;
         const color = isBull ? '#10b981' : '#ef4444';
 
-        // Volume backdrop bar
         const vHeight = (c.volume_traded / maxV) * (plotH * 0.28);
         ctx.fillStyle = isBull ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)';
         ctx.fillRect(cx - candleW / 2, padTop + plotH - vHeight, candleW, vHeight);
 
-        // High-Low Wick
         const yHigh = padTop + ((maxP - c.high_price) / (maxP - minP)) * plotH;
         const yLow = padTop + ((maxP - c.low_price) / (maxP - minP)) * plotH;
         ctx.strokeStyle = color;
@@ -1125,7 +1354,6 @@
         ctx.lineTo(cx, yLow);
         ctx.stroke();
 
-        // Open-Close Body
         const yOpen = padTop + ((maxP - c.open_price) / (maxP - minP)) * plotH;
         const yClose = padTop + ((maxP - c.close_price) / (maxP - minP)) * plotH;
         const topY = Math.min(yOpen, yClose);
@@ -1133,9 +1361,9 @@
         ctx.fillStyle = color;
         ctx.fillRect(cx - candleW / 2, topY, candleW, bodyH);
 
-        if (idx % 4 === 0) {
+        if (idx % 5 === 0) {
           ctx.fillStyle = '#556075';
-          ctx.fillText(c.bucket_timestamp.slice(0, 5), cx - 14, H - 5);
+          ctx.fillText(c.bucket_timestamp.slice(0, 5), cx - 12, H - 4);
         }
       });
     }
@@ -1144,7 +1372,7 @@
     // MAIN DATA REFRESH & RENDERING
     // =========================================================================
     async function loadState() {
-      const res = await fetch('/api/state?player_id=' + activePlayerId);
+      const res = await fetch(`/api/state?player_id=${activePlayerId}&realm_id=${selectedRealmId}`);
       marketState = await res.json();
 
       // Topbar Telemetry
@@ -1154,12 +1382,36 @@
       document.getElementById('mTaxBurn').textContent = '-' + k.total_tax_burned.toLocaleString() + 'g';
       document.getElementById('mEscrow').textContent = k.total_escrow_locked.toLocaleString() + 'g';
       document.getElementById('mSerials').textContent = `${k.unique_serials}/${k.total_minted_items} VERIFIED`;
+      document.getElementById('engineBadge').textContent = `SELECT ... FOR UPDATE // ${k.backend_engine}`;
+
+      // Render Interactive 5-Hub Tamriel Map (Wayrest, Elden Root, Mournhold, Imperial City, Rawl'kha)
+      renderTamrielMap();
+
+      // Render Hub Filter Pills
+      const pillsEl = document.getElementById('hubFilterPills');
+      pillsEl.innerHTML = `<button class="hub-pill ${selectedRealmId === 0 ? 'active' : ''}" onclick="selectHubFilter(0)">All Tamriel (${k.active_orders})</button>` +
+        marketState.realms.map(r =>
+          `<button class="hub-pill ${selectedRealmId === r.realm_id ? 'active' : ''}" onclick="selectHubFilter(${r.realm_id})">
+            ${r.realm_name} (${r.active_listings_count})
+          </button>`
+        ).join('');
+
+      // Populate Kiosk Selects in Bag Drawer & Kiosk Bid Box
+      const hubOpts = marketState.realms.map(r => `<option value="${r.realm_id}">${r.realm_name} (${(r.tax_rate_bps/100).toFixed(1)}% Cut)</option>`).join('');
+      document.getElementById('listHubSelect').innerHTML = hubOpts;
+      document.getElementById('kioskBidHub').innerHTML = hubOpts;
+
+      const guildOpts = marketState.guilds.map(g => `<option value="${g.guild_id}">${g.guild_name} (${(g.treasury_gold/1000).toFixed(0)}k)</option>`).join('');
+      document.getElementById('kioskBidGuild').innerHTML = guildOpts;
+
+      const glyphOpts = marketState.enchantments.map(e => `<option value="${e.enchant_id}">${e.enchant_name} (+${e.bonus_value} ${e.stat_type})</option>`).join('');
+      document.getElementById('forgeGlyphSelect').innerHTML = glyphOpts;
 
       // Character Selector
       const sel = document.getElementById('traderSelect');
       sel.innerHTML = marketState.players.map(p =>
         `<option value="${p.player_id}" ${p.player_id == activePlayerId ? 'selected' : ''}>
-          ${p.username} // Lv.${p.level} ${p.character_class} (${p.faction})
+          ${p.username} // Lv.${p.level} ${p.character_class} [${p.realm_name}]
         </option>`
       ).join('');
       sel.onchange = () => {
@@ -1170,11 +1422,12 @@
 
       const activePlayerObj = marketState.players.find(p => p.player_id == activePlayerId) || marketState.players[0];
       if (activePlayerObj) {
+        activePlayerId = activePlayerObj.player_id;
         document.getElementById('activeLiquidGold').textContent = activePlayerObj.gold_balance.toLocaleString() + 'g';
         document.getElementById('activeEscrowGold').textContent = activePlayerObj.escrow_gold.toLocaleString() + 'g';
       }
 
-      // Default Selected Listing for Top Deck
+      // Default Selected Listing
       if (!selectedListing || !marketState.listings.find(l => l.listing_id === selectedListing.listing_id)) {
         selectedListing = marketState.listings[0] || null;
       } else {
@@ -1182,14 +1435,21 @@
       }
       renderSelectedItemDeck();
 
-      // Orderbook Rows
+      // Render Orderbook Rows with Tamriel Trade Centre (TTC) Cross-City Arbitrage Radar
       const tbody = document.getElementById('orderbookTbody');
       tbody.innerHTML = marketState.listings.map((l, idx) => {
         const isSel = selectedListing && selectedListing.listing_id === l.listing_id;
+        const temperTag = l.temper_tier > 0 ? ` +${l.temper_tier}` : '';
         const specStr = l.equip_slot
           ? `${l.equip_slot} // ${l.attack_power > 0 ? l.attack_power + ' ATK' : l.armor_rating + ' ARM'}`
           : (l.effect_type ? `${l.effect_type} (+${l.effect_potency})` : l.category);
         const minNextBid = l.current_bid === 0 ? l.start_price : Math.floor(l.current_bid * 1.05) + 1;
+
+        let ttcHtml = `<span style="font-family:var(--font-mono); font-size:10px; color:var(--text-dim);">Regional Floor</span>`;
+        if (l.buyout_price && l.other_hub_max_price && l.other_hub_max_price > l.buyout_price * 1.12) {
+          const spreadPct = Math.round(((l.other_hub_max_price - l.buyout_price) / l.buyout_price) * 100);
+          ttcHtml = `<span class="ttc-arb-badge" title="Flip at ${l.arbitrage_target_hub} Kiosk for ${l.other_hub_max_price.toLocaleString()}g">+${spreadPct}% AT ${l.arbitrage_target_hub.toUpperCase()}</span>`;
+        }
 
         return `
           <tr class="${isSel ? 'selected-row' : ''}" onclick="selectOrderRow(${idx})">
@@ -1200,31 +1460,32 @@
                      onmouseenter='showRpgTooltip(event, ${JSON.stringify(l).replace(/'/g, "&#39;")})'
                      onmousemove="moveRpgTooltip(event)"
                      onmouseleave="hideRpgTooltip()">
+                  ${l.temper_tier > 0 ? `<span class="temper-badge">+${l.temper_tier}</span>` : ''}
                   ${getItemSvg(l.icon_key)}
                   ${l.stack_size > 1 ? `<span class="stack-count">${l.stack_size}</span>` : ''}
                 </div>
                 <div>
-                  <div class="item-name-line text-${l.rarity}">${l.item_name}</div>
+                  <div class="item-name-line text-${l.rarity}">${l.item_name}${temperTag}</div>
                   <div class="item-sub-line">
                     <span class="mint-badge">${l.mint_serial}</span>
-                    ${l.enchants ? `<span style="color:#34d399;">[Enchanted]</span>` : ''}
+                    ${l.enchants ? `<span style="color:#34d399;">[Glyph]</span>` : ''}
                   </div>
                 </div>
               </div>
             </td>
-            <td style="font-family:var(--font-mono); font-size:11px; color:var(--text-secondary);">
+            <td style="font-family:var(--font-mono); font-size:10.5px; color:var(--text-secondary);">
               ${specStr}
             </td>
             <td>
-              <div style="font-size:12px;">${l.realm_name}</div>
-              <div style="font-family:var(--font-mono); font-size:10px; color:var(--text-dim);">${(l.tax_rate_bps/100).toFixed(1)}% Cut</div>
+              <div style="font-weight:600; font-size:11.5px; color:var(--text-primary);">${l.realm_name}</div>
+              <div style="font-family:var(--font-mono); font-size:9.5px; color:var(--brass);">${l.kiosk_guild_name || 'Independent'} (${(l.tax_rate_bps/100).toFixed(1)}%)</div>
             </td>
-            <td style="font-family:var(--font-mono); font-size:11.5px;">${l.seller_name}</td>
+            <td>${ttcHtml}</td>
             <td>
               ${l.current_bid > 0
                 ? `<div style="font-family:var(--font-mono); font-weight:700; color:var(--cyan);">${l.current_bid.toLocaleString()}g</div>
-                   <div style="font-family:var(--font-mono); font-size:10px; color:var(--text-dim);">High: ${l.high_bidder_name}</div>`
-                : `<span style="font-family:var(--font-mono); font-size:11px; color:var(--text-dim);">Floor: ${l.start_price.toLocaleString()}g</span>`}
+                   <div style="font-family:var(--font-mono); font-size:9.5px; color:var(--text-dim);">High: ${l.high_bidder_name}</div>`
+                : `<span style="font-family:var(--font-mono); font-size:10.5px; color:var(--text-dim);">Start: ${l.start_price.toLocaleString()}g</span>`}
             </td>
             <td>
               ${l.buyout_price
@@ -1232,12 +1493,12 @@
                 : `<span style="font-family:var(--font-mono); font-size:11px; color:var(--text-dim);">--</span>`}
             </td>
             <td style="text-align:right;" onclick="event.stopPropagation();">
-              <div style="display:inline-flex; gap:6px;">
-                <button class="btn" style="padding:5px 9px; font-size:10px;" onclick="placeEscrowBid(${l.listing_id}, ${minNextBid})">
+              <div style="display:inline-flex; gap:5px;">
+                <button class="btn" style="padding:4px 8px; font-size:9.5px;" onclick="placeEscrowBid(${l.listing_id}, ${minNextBid})">
                   Bid ${minNextBid.toLocaleString()}g
                 </button>
                 ${l.buyout_price ? `
-                  <button class="btn btn-brass" style="padding:5px 10px; font-size:10px;" onclick="executeBuyout(${l.listing_id})">
+                  <button class="btn btn-brass" style="padding:4px 9px; font-size:9.5px;" onclick="executeBuyout(${l.listing_id})">
                     Buyout
                   </button>
                 ` : ''}
@@ -1254,13 +1515,15 @@
       for (let i = 0; i < 20; i++) {
         if (i < inv.length) {
           const item = inv[i];
+          const isBagSel = selectedBagItem && selectedBagItem.instance_id === item.instance_id;
           slotsHtml += `
-            <div class="item-slot slot-${item.rarity}"
+            <div class="item-slot slot-${item.rarity} ${isBagSel ? 'selected-bag-slot' : ''}"
                  onclick='openListDrawer(${JSON.stringify(item).replace(/'/g, "&#39;")})'
                  onmouseenter='showRpgTooltip(event, ${JSON.stringify(item).replace(/'/g, "&#39;")})'
                  onmousemove="moveRpgTooltip(event)"
                  onmouseleave="hideRpgTooltip()">
-              ${item.is_escrowed ? `<span class="escrow-tag">AH</span>` : ''}
+              ${item.is_escrowed ? `<span class="escrow-tag">KSK</span>` : ''}
+              ${item.temper_tier > 0 ? `<span class="temper-badge">+${item.temper_tier}</span>` : ''}
               ${getItemSvg(item.icon_key)}
               ${item.stack_size > 1 ? `<span class="stack-count">${item.stack_size}</span>` : ''}
             </div>
@@ -1273,21 +1536,65 @@
 
       // Render Settlement Tape
       document.getElementById('ledgerTapeList').innerHTML = marketState.ledger.map(tx => `
-        <div style="background:var(--bg-panel); border:1px solid var(--border-dim); padding:8px 10px; display:flex; justify-content:space-between; align-items:center;">
+        <div style="background:var(--bg-panel); border:1px solid var(--border-dim); padding:7px 10px; display:flex; justify-content:space-between; align-items:center;">
           <div>
-            <div style="font-weight:600; font-size:12px;" class="text-${tx.rarity}">
-              #${tx.tx_id} // ${tx.item_name}
+            <div style="font-weight:600; font-size:11.5px;" class="text-${tx.rarity}">
+              #${tx.tx_id} // ${tx.item_name} <span style="font-family:var(--font-mono); font-size:9.5px; color:var(--text-dim);">[${tx.realm_name}]</span>
             </div>
-            <div style="font-family:var(--font-mono); font-size:10px; color:var(--text-secondary);">
+            <div style="font-family:var(--font-mono); font-size:9.5px; color:var(--text-secondary);">
               ${tx.buyer_name} &larr; ${tx.seller_name} (${tx.mint_serial})
             </div>
           </div>
           <div style="text-align:right; font-family:var(--font-mono);">
-            <div style="color:var(--brass-bright); font-weight:700; font-size:12px;">${tx.gross_price.toLocaleString()}g</div>
-            <div style="font-size:9.5px; color:#f87171;">Tax Burn: -${tx.market_tax_burned.toLocaleString()}g</div>
+            <div style="color:var(--brass-bright); font-weight:700; font-size:11.5px;">${tx.gross_price.toLocaleString()}g</div>
+            <div style="font-size:9px; color:#f87171;">Kiosk Tax: -${tx.market_tax_burned.toLocaleString()}g</div>
           </div>
         </div>
       `).join('');
+    }
+
+    function renderTamrielMap() {
+      const container = document.getElementById('tamrielMapNodes');
+      // Keep SVG background
+      const svgBg = container.querySelector('svg').outerHTML;
+      const nodesHtml = marketState.realms.map(r => {
+        const isAct = selectedRealmId === r.realm_id;
+        const isWarzone = r.realm_name === 'Imperial City';
+        return `
+          <div class="hub-node ${isAct ? 'active' : ''} ${isWarzone ? 'warzone' : ''}"
+               style="left:${r.map_x}%; top:${r.map_y}%;"
+               onclick="selectHubFilter(${r.realm_id === selectedRealmId ? 0 : r.realm_id})">
+            <div class="hub-pin"></div>
+            <div class="hub-label">${r.realm_name}</div>
+            <div class="hub-sub">${(r.tax_rate_bps/100).toFixed(1)}% // ${r.active_listings_count} ord</div>
+          </div>
+        `;
+      }).join('');
+      container.innerHTML = svgBg + nodesHtml;
+
+      const footer = document.getElementById('mapFooterBar');
+      const header = document.getElementById('activeHubHeader');
+      if (selectedRealmId === 0) {
+        header.textContent = 'ALL 5 TAMRIEL HUBS';
+        footer.innerHTML = `
+          <span style="color:var(--text-secondary);">Click any City Hub node above to isolate its local Guild Kiosk</span>
+          <span style="color:var(--brass-bright);">5 Active Guild Leases</span>
+        `;
+      } else {
+        const hub = marketState.realms.find(r => r.realm_id === selectedRealmId);
+        if (hub) {
+          header.textContent = `${hub.realm_name.toUpperCase()} (${hub.province.toUpperCase()})`;
+          footer.innerHTML = `
+            <span>Lease: <strong style="color:var(--brass-bright);">${hub.controlling_guild_name}</strong></span>
+            <span>Top Sealed Bid: <strong style="color:var(--cyan);">${hub.top_sealed_bid.toLocaleString()}g</strong></span>
+          `;
+        }
+      }
+    }
+
+    function selectHubFilter(realmId) {
+      selectedRealmId = realmId;
+      loadState();
     }
 
     function selectOrderRow(idx) {
@@ -1299,33 +1606,35 @@
     function renderSelectedItemDeck() {
       const panel = document.getElementById('selectedItemPanel');
       if (!selectedListing) {
-        panel.innerHTML = `<div style="color:var(--text-dim);">No active listing selected.</div>`;
+        panel.innerHTML = `<div style="color:var(--text-dim);">No active listing in this hub.</div>`;
         return;
       }
       const l = selectedListing;
+      const temperStr = l.temper_tier > 0 ? ` +${l.temper_tier}` : '';
       panel.innerHTML = `
         <div>
           <div class="sel-header">
-            <div class="item-slot slot-${l.rarity}" style="width:54px; height:54px;">
+            <div class="item-slot slot-${l.rarity}" style="width:50px; height:50px;">
+              ${l.temper_tier > 0 ? `<span class="temper-badge">+${l.temper_tier}</span>` : ''}
               ${getItemSvg(l.icon_key)}
             </div>
             <div>
-              <div style="font-family:var(--font-display); font-weight:700; font-size:14px;" class="text-${l.rarity}">
-                ${l.item_name}
+              <div style="font-family:var(--font-display); font-weight:700; font-size:13px;" class="text-${l.rarity}">
+                ${l.item_name}${temperStr}
               </div>
-              <div style="font-family:var(--font-mono); font-size:10.5px; color:var(--text-secondary); margin-top:2px;">
-                ${l.rarity} ${l.category} // Req Lv.${l.required_level}
+              <div style="font-family:var(--font-mono); font-size:10px; color:var(--text-secondary); margin-top:2px;">
+                ${l.realm_name} Kiosk // ${(l.tax_rate_bps/100).toFixed(1)}% Cut
               </div>
               <div class="mint-badge" style="margin-top:4px; display:inline-block;">${l.mint_serial}</div>
             </div>
           </div>
-          <div style="font-style:italic; font-size:11px; color:var(--text-secondary); margin-top:10px; line-height:1.35;">
-            "${l.lore_text || 'Standard Grand Exchange tradable asset.'}"
+          <div style="font-style:italic; font-size:10.5px; color:var(--text-secondary); margin-top:8px; line-height:1.35;">
+            "${l.lore_text || 'Tradable Tamriel Guild Exchange asset.'}"
           </div>
         </div>
-        <div style="display:flex; justify-content:space-between; align-items:center; padding-top:10px; border-top:1px solid var(--border-dim); font-family:var(--font-mono); font-size:11px;">
-          <span style="color:var(--text-dim);">BUYOUT FLOOR</span>
-          <span style="color:var(--brass-bright); font-weight:700; font-size:14px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; padding-top:8px; border-top:1px solid var(--border-dim); font-family:var(--font-mono); font-size:10.5px;">
+          <span style="color:var(--text-dim);">KIOSK FLOOR</span>
+          <span style="color:var(--brass-bright); font-weight:700; font-size:13.5px;">
             ${l.buyout_price ? l.buyout_price.toLocaleString() + 'g' : l.start_price.toLocaleString() + 'g'}
           </span>
         </div>
@@ -1334,7 +1643,7 @@
     }
 
     // =========================================================================
-    // TRADING & INVENTORY ACTIONS
+    // TRADING, ARCANE TEMPERING & KIOSK FLIP ACTIONS
     // =========================================================================
     async function executeBuyout(listingId) {
       const res = await fetch('/api/buyout', {
@@ -1368,15 +1677,20 @@
 
     function openListDrawer(item) {
       if (item.is_escrowed) {
-        notify(`Item [${item.item_name}] is currently escrowed on the active orderbook.`, true);
+        notify(`Item [${item.item_name}] is currently escrowed on an active City Kiosk.`, true);
         return;
       }
       selectedBagItem = item;
-      document.getElementById('listItemTitle').textContent = `List: ${item.item_name}`;
-      const suggested = Math.max(500, item.base_vendor_value * 4);
+      const tStr = item.temper_tier > 0 ? ` (+${item.temper_tier})` : '';
+      document.getElementById('listItemTitle').textContent = `${item.item_name}${tStr} [${item.mint_serial}]`;
+      const suggested = Math.max(500, item.base_vendor_value * (4 + item.temper_tier * 2));
       document.getElementById('listStartPrice').value = Math.round(suggested * 0.8);
       document.getElementById('listBuyoutPrice').value = suggested;
+      if (selectedRealmId > 0) {
+        document.getElementById('listHubSelect').value = selectedRealmId;
+      }
       document.getElementById('listDrawer').classList.add('open');
+      loadState();
     }
 
     function closeListDrawer() {
@@ -1386,6 +1700,7 @@
 
     async function submitListItem() {
       if (!selectedBagItem) return;
+      const realmId = parseInt(document.getElementById('listHubSelect').value, 10);
       const startP = parseInt(document.getElementById('listStartPrice').value, 10);
       const buyoutP = parseInt(document.getElementById('listBuyoutPrice').value, 10);
       const res = await fetch('/api/list-item', {
@@ -1394,6 +1709,7 @@
         body: JSON.stringify({
           instance_id: selectedBagItem.instance_id,
           seller_id: activePlayerId,
+          realm_id: realmId,
           start_price: startP,
           buyout_price: buyoutP
         })
@@ -1408,18 +1724,103 @@
       }
     }
 
+    async function submitTemperItem() {
+      if (!selectedBagItem) return;
+      const enchantId = parseInt(document.getElementById('forgeGlyphSelect').value, 10);
+      const res = await fetch('/api/temper-item', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          instance_id: selectedBagItem.instance_id,
+          player_id: activePlayerId,
+          enchant_id: enchantId
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        notify(data.detail || 'Tempering failed', true);
+      } else {
+        notify(data.message);
+        closeListDrawer();
+        loadState();
+      }
+    }
+
+    async function submitKioskSealedBid() {
+      const realmId = parseInt(document.getElementById('kioskBidHub').value, 10);
+      const guildId = parseInt(document.getElementById('kioskBidGuild').value, 10);
+      const bidGold = parseInt(document.getElementById('kioskBidAmount').value, 10);
+      const res = await fetch('/api/kiosk-bid', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ realm_id: realmId, guild_id: guildId, bid_gold: bidGold })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        notify(data.detail || 'Sealed bid rejected', true);
+      } else {
+        notify(data.message);
+        loadState();
+      }
+    }
+
+    async function triggerWeeklyKioskFlip() {
+      const res = await fetch('/api/kiosk-flip', { method: 'POST' });
+      const data = await res.json();
+      notify(data.message);
+      loadState();
+    }
+
     // =========================================================================
-    // CONCURRENCY STRESS TESTER & RIGHT TABS
+    // RIGHT WORKBENCH TABS: KIOSK / DUPE LAB / INQUISITOR RMT GRAPH / SQL
     // =========================================================================
     function switchRightTab(key, btn) {
       document.querySelectorAll('.sub-tab').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
+      document.getElementById('rtab-kiosk').style.display = key === 'kiosk' ? 'block' : 'none';
       document.getElementById('rtab-dupe').style.display = key === 'dupe' ? 'block' : 'none';
-      document.getElementById('rtab-ledger').style.display = key === 'ledger' ? 'block' : 'none';
+      document.getElementById('rtab-rmt').style.display = key === 'rmt' ? 'block' : 'none';
       document.getElementById('rtab-sql').style.display = key === 'sql' ? 'block' : 'none';
-      if (key === 'sql') {
+      if (key === 'rmt') {
+        loadRmtLaunderingGraph();
+      } else if (key === 'sql') {
         loadQueryInspector('q5_cross_realm_arbitrage');
       }
+    }
+
+    async function loadRmtLaunderingGraph() {
+      const res = await fetch('/api/rmt-graph');
+      const data = await res.json();
+      const box = document.getElementById('rmtGraphContainer');
+
+      const edgesHtml = data.edges.map((e, i) => `
+        <div style="background:var(--bg-panel); border:1px solid rgba(239,68,68,0.4); padding:8px 10px; margin-bottom:6px; font-family:var(--font-mono); font-size:10.5px;">
+          <div style="display:flex; justify-content:space-between; color:#fca5a5; font-weight:700;">
+            <span>HOP #${i+1}: ${e.sender_name} &rarr; ${e.recipient_name}</span>
+            <span>${e.gross_price.toLocaleString()}g (${Math.round(e.gross_price/e.base_vendor_value)}x Val)</span>
+          </div>
+          <div style="color:var(--text-secondary); font-size:9.5px; margin-top:3px;">
+            Wash Item: [${e.item_name}] (Real Val: ${e.base_vendor_value}g) // Hub: ${e.realm_name}
+            ${e.recipient_banned ? '<span style="color:var(--emerald); margin-left:6px;">[BANNED &amp; SEIZED]</span>' : ''}
+          </div>
+        </div>
+      `).join('');
+
+      box.innerHTML = `
+        <div style="background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.3); padding:8px 10px; margin-bottom:8px; font-family:var(--font-mono); font-size:10.5px; display:flex; justify-content:space-between;">
+          <span>Total Dirty Gold Traced: <strong style="color:#fca5a5;">${data.total_laundered_gold.toLocaleString()}g</strong></span>
+          <span style="color:var(--text-dim);">CTE Latency: ${data.latency_us} us</span>
+        </div>
+        ${edgesHtml}
+      `;
+    }
+
+    async function executeInquisitorBan() {
+      const res = await fetch('/api/ban-rmt-ring', { method: 'POST' });
+      const data = await res.json();
+      notify(data.message);
+      loadRmtLaunderingGraph();
+      loadState();
     }
 
     async function executeStressTest(mode) {
@@ -1445,17 +1846,17 @@
 
       box.innerHTML = `
         <div style="background:var(--bg-panel); border:1px solid ${isSafe ? 'var(--emerald)' : 'var(--crimson)'}; padding:10px 12px;">
-          <div style="display:flex; justify-content:space-between; font-family:var(--font-mono); font-size:11px; font-weight:700; color:${isSafe ? 'var(--emerald)' : '#fca5a5'};">
+          <div style="display:flex; justify-content:space-between; font-family:var(--font-mono); font-size:10.5px; font-weight:700; color:${isSafe ? 'var(--emerald)' : '#fca5a5'};">
             <span>${data.ledger_integrity}</span>
             <span>${data.total_duration_ms} ms</span>
           </div>
-          <div style="font-family:var(--font-mono); font-size:10px; color:var(--text-secondary); margin-top:4px;">
-            Target Serial: ${data.mint_serial} // Settled: ${data.succeeded} // Blocked: ${data.rejected_by_lock} // Duped: ${data.items_duplicated}
+          <div style="font-family:var(--font-mono); font-size:9.5px; color:var(--text-secondary); margin-top:4px;">
+            Serial: ${data.mint_serial} // Settled: ${data.succeeded} // Blocked: ${data.rejected_by_lock} // Duped: ${data.items_duplicated}
           </div>
 
           <div class="thread-matrix">${matrixNodes}</div>
 
-          <div style="font-family:var(--font-mono); font-size:10px; color:var(--text-dim); max-height:130px; overflow-y:auto; background:var(--bg-void); padding:8px; border:1px solid var(--border-dim);">
+          <div style="font-family:var(--font-mono); font-size:9.5px; color:var(--text-dim); max-height:115px; overflow-y:auto; background:var(--bg-void); padding:7px; border:1px solid var(--border-dim);">
             ${data.sample_logs.map(l =>
               `<div style="color:${l.success ? (isSafe ? '#6ee7b7' : '#fca5a5') : '#8c96ab'}; margin-bottom:2px;">
                 [T#${String(l.thread_id).padStart(3,'0')} | ${l.latency_ms}ms] ${l.code}: ${l.message}
@@ -1473,20 +1874,20 @@
       const cols = data.rows.length > 0 ? Object.keys(data.rows[0]) : [];
 
       box.innerHTML = `
-        <div style="font-family:var(--font-mono); font-size:11px; font-weight:700; color:var(--brass-bright); margin-bottom:4px;">
+        <div style="font-family:var(--font-mono); font-size:10.5px; font-weight:700; color:var(--brass-bright); margin-bottom:4px;">
           ${data.title} (${data.latency_us} us)
         </div>
-        <div style="font-family:var(--font-mono); font-size:10px; color:var(--cyan); background:rgba(56,189,248,0.08); padding:6px 8px; border-left:2px solid var(--cyan); margin-bottom:8px; word-break:break-word;">
+        <div style="font-family:var(--font-mono); font-size:9.5px; color:var(--cyan); background:rgba(56,189,248,0.08); padding:5px 8px; border-left:2px solid var(--cyan); margin-bottom:8px; word-break:break-word;">
           ${data.ra}
         </div>
         <div style="overflow-x:auto; border:1px solid var(--border-dim);">
-          <table class="market-table" style="font-size:10.5px;">
+          <table class="market-table" style="font-size:10px;">
             <thead>
-              <tr>${cols.map(c => `<th style="padding:5px 8px;">${c}</th>`).join('')}</tr>
+              <tr>${cols.map(c => `<th style="padding:4px 7px;">${c}</th>`).join('')}</tr>
             </thead>
             <tbody>
               ${data.rows.map(r => `
-                <tr>${cols.map(c => `<td style="padding:5px 8px; font-family:var(--font-mono);">${r[c]}</td>`).join('')}</tr>
+                <tr>${cols.map(c => `<td style="padding:4px 7px; font-family:var(--font-mono);">${r[c]}</td>`).join('')}</tr>
               `).join('')}
             </tbody>
           </table>
@@ -1519,7 +1920,7 @@
 
     async function resetDatabase() {
       await fetch('/api/reset', { method: 'POST' });
-      notify('Economy restored to initial seed state.');
+      notify('Tamriel Economy & 5 City Kiosks restored to initial seed state.');
       loadState();
     }
 

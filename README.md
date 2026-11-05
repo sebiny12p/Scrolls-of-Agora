@@ -1,49 +1,45 @@
 # Scrolls of Agora
 
-**Decentralized MMORPG Guild Exchange, Orderbook & Anti-Dupe Transaction Engine**
+**Tamriel Decentralized MMORPG Guild Exchange, Arcane Forge & Anti-Dupe Transaction Engine**
 
-**Scrolls of Agora** is a high-concurrency relational marketplace, orderbook, and double-entry financial ledger inspired by the decentralized Guild Trader economy of *The Elder Scrolls Online* and *World of Warcraft*. It is engineered from the ground up to solve the two hardest backend problems in virtual game economies: **concurrent race-condition item duplication ("duping")** and **gold double-spending** under high-contention load.
+**Scrolls of Agora** is a high-concurrency relational marketplace, spatial guild-trader network, and double-entry financial ledger modeled after the decentralized economy of *The Elder Scrolls Online* and *World of Warcraft*.
 
-Built with **PostgreSQL 18**, **FastAPI**, and a custom zero-dependency **RPG Market Workstation UI** featuring vector item inspection, a 20-slot interactive character inventory bag, real-time 24h OHLCV candlestick telemetry, and a 100-thread hardware-barrier concurrency stress lab.
-
----
-
-## Core Systems & Database Engineering
-
-### 1. Anti-Dupe Pessimistic Concurrency Control (`SELECT ... FOR UPDATE`)
-In a naive `READ COMMITTED` transaction without explicit row locks, if 100 players or bots attempt to buy out the same 1-of-1 Mythic relic within the same millisecond window, all 100 transactions read `status = 'ACTIVE'` before the first commit completes—cloning the item 100 times or corrupting wallet balances.
-
-**Scrolls of Agora** prevents this at the storage-engine level:
-* Acquires an exclusive pessimistic row lock (`SELECT ... FOR UPDATE`) on the target `auction_listings` record before evaluating state.
-* Locks the buyer, seller, and previous high-bidder rows in **deterministic ascending `player_id` order** (`ORDER BY player_id ASC FOR UPDATE`), mathematically eliminating circular wait conditions and **AB-BA deadlocks**.
-* Serializes competing threads at the lock boundary: Thread #1 transitions `status -> 'SOLD'` and transfers the unique cryptographic `mint_serial`; Threads #2–#100 wake up post-commit, observe the mutated state, and abort in microseconds with **0 duplicated items**.
-
-### 2. Escrow Bidding & Deflationary Gold-Sink Double-Entry Ledger
-* **Atomic Escrow State Machine**: Placing a bid atomically locks liquid `gold_balance` into `escrow_gold` and refunds the prior high bidder's escrow within the same ACID transaction.
-* **Conservation of Value Invariant**: Every settled trade writes an immutable record to `ledger_transactions` governed by a strict database constraint:
-  ```sql
-  CONSTRAINT chk_ledger_math CHECK (gross_price = market_tax_burned + seller_net_payout)
-  ```
-* **Regional Kiosk Tax Sinks**: Each trading hub (*Mournhold-Grand-Kiosk*, *Vivec-Canton-Exchange*, *Wayrest-Royal-Bazaar*) enforces basis-point tax burns (`tax_rate_bps`) that permanently remove gold from circulation to combat MMO hyperinflation.
-
-### 3. 10-Table Normalized Schema (BCNF / 3NF) with ISA Subtype Specialization
-* **ISA Generalization Hierarchy**: Models `item_templates` as the supertype entity with disjoint specialization subtypes `equipment_specs` (weapons/armor combat stats, durability, sockets) and `consumable_specs` (alchemical buffs, potency, duration, cooldowns).
-* **Cryptographic Mint Serials & Partial Indexing**: Every physical item in `inventory_items` carries a unique `mint_serial` (`AGORA-...`) and a partial uniqueness index (`WHERE status = 'ACTIVE'`) ensuring an item instance can never be double-listed.
-
-### 4. Built-in Analytical SQL, Arbitrage & Anti-Cheat RMT Engine
-Includes 7 live analytical queries paired with formal Relational Algebra ($\pi, \sigma, \bowtie, \gamma, -$) and live `EXPLAIN QUERY PLAN` profiling:
-* **Cross-Hub Arbitrage Scanner (`Q5`)**: Self-joins active floor prices across trading hubs to surface instant $>15\%$ ROI spreads.
-* **RMT Gold-Laundering Wash-Trade Detector (`Q6`)**: Flags illicit Real-Money Trading mules buying common grey junk items at $>15\times$ base valuation.
-* **Market Scarcity Set-Difference Finder (`Q3`)**: Uses relational set difference ($-$ / `NOT EXISTS`) to detect high-tier items experiencing complete supply droughts.
+Unlike standard e-commerce CRUD apps, **Scrolls of Agora** models a **decentralized 5-city economy** (**Wayrest**, **Elden Root**, **Mournhold**, **Imperial City**, and **Rawl'kha**) with no single global auction house—while solving the hardest backend engineering challenges in virtual game economies: **concurrent race-condition item duplication ("duping")**, **gold double-spending**, **multi-table atomic crafting**, **blind sealed-bid kiosk auctions**, and **recursive RMT money-laundering detection**.
 
 ---
 
-## Entity-Relationship (ER) Architecture
+## Signature Gameplay & Database Engineering Twists
+
+### 1. Decentralized 5-City Tamriel Guild Kiosks & "The Weekly Flip"
+* **Spatial Regional Orderbooks (`realms`, `trade_guilds`, `kiosk_bids`)**: Each of the 5 Tamriel trading hubs—**Wayrest** *(Stormhaven)*, **Elden Root** *(Grahtwood)*, **Mournhold** *(Deshaan)*, **Imperial City** *(Cyrodiil Warzone)*, and **Rawl'kha** *(Reaper's March)*—operates its own localized orderbook and basis-point tax rate (`tax_rate_bps`).
+* **Tamriel Trade Centre (TTC) Arbitrage Radar**: Because prices vary by city, the orderbook runs a correlated subquery radar that highlights items listed significantly below another hub's floor price (e.g. buying *Dreugh Wax* in *Rawl'kha* at `19,500g` and flipping it in *Wayrest* at `34,500g` for `+77%` ROI).
+* **Sealed-Bid Weekly Kiosk Auction (`resolve_weekly_kiosk_flip`)**: Trade Guilds submit blind treasury bids (`kiosk_bids`) to lease each city's kiosk. Triggering **The Weekly Kiosk Flip** executes an atomic SQL settlement that transfers kiosk control to the highest sealed bidder, automatically refunds all losing guilds' treasuries, and routes 50% of future city trade taxes to the winning syndicate.
+
+### 2. Anti-Dupe Pessimistic Concurrency Control (`SELECT ... FOR UPDATE`)
+* **The Race-Condition Exploit**: Under naive `READ COMMITTED` isolation without explicit row locks, if 100 threads attempt to buy out a 1-of-1 Mythic *Elder Scroll of Chim* at the exact same microsecond, all 100 read `status = 'ACTIVE'` before the first commit completes—cloning the item 100 times.
+* **The Pessimistic Lock Defense**: `execute_atomic_buyout` acquires an exclusive row lock (`SELECT ... FOR UPDATE`) on `auction_listings` and locks buyer, seller, and outbid player wallets in **deterministic ascending `player_id` order** (`ORDER BY player_id ASC FOR UPDATE`) to guarantee **zero AB-BA deadlocks**. Thread #1 settles the trade; Threads #2–#100 wake up post-commit, observe `status = 'SOLD'`, and abort with **0 duplicated items**.
+
+### 3. The Arcane Tempering Forge (Atomic Multi-Table Crafting Transaction)
+* Selecting any unlocked Weapon, Armor, or Artifact in your **20-Slot Character Inventory Bag** lets you temper and enchant it at the **Arcane Forge** (`/api/temper-item`).
+* In a single ACID transaction, the engine verifies wallet solvency, consumes *Dreugh Wax* or *Aetherial Chromium* stacks from `inventory_items`, increments `temper_tier` (`+1` to `+5`) and `bonus_power`, binds a new *Glyph* in `item_instance_enchantments`, and mints a new cryptographic `mint_serial` (`AGORA-TMPR...`).
+
+### 4. Inquisitor `WITH RECURSIVE` RMT Gold-Laundering Graph Tracer
+* Real-Money Trading (RMT) bot farms launder illicit gold by purchasing worthless `5g` common junk (*Cracked Goblinshiv*) across multi-hop mule chains for `300,000g+`.
+* The **RMT Mule Graph** tab executes a **Recursive CTE (`WITH RECURSIVE`)** query across `ledger_transactions` to trace dirty gold hops (`Zul_Bot_Harvester -> Skooma_Launder_02 -> RMT_Syndicate_Boss`) and provides a 1-click **Atomic Inquisitor Seizure & Ban** that zeroes mule wallets and routes seized gold into legitimate Trade Guild treasuries.
+
+---
+
+## Entity-Relationship (ER) Architecture (12 Tables, BCNF / 3NF)
 
 ```mermaid
 erDiagram
+    TRADE_GUILDS ||--o{ REALMS : "controls_kiosk"
+    TRADE_GUILDS ||--o{ KIOSK_BIDS : "submits_sealed_bid"
+    TRADE_GUILDS ||--o{ PLAYERS : "enrolls"
+    REALMS ||--o{ KIOSK_BIDS : "auctions_lease"
     REALMS ||--o{ PLAYERS : "hosts"
-    REALMS ||--o{ AUCTION_LISTINGS : "operates"
+    REALMS ||--o{ AUCTION_LISTINGS : "operates_kiosk"
+
     PLAYERS ||--o{ INVENTORY_ITEMS : "owns"
     PLAYERS ||--o{ AUCTION_LISTINGS : "sells"
     PLAYERS ||--o{ AUCTION_BIDS : "places"
@@ -53,62 +49,51 @@ erDiagram
     ITEM_TEMPLATES ||--o{ INVENTORY_ITEMS : "instantiates"
     ITEM_TEMPLATES ||--o{ PRICE_HISTORY_OHLC : "tracks"
 
-    INVENTORY_ITEMS ||--o{ ITEM_INSTANCE_ENCHANTMENTS : "has"
+    INVENTORY_ITEMS ||--o{ ITEM_INSTANCE_ENCHANTMENTS : "binds"
     ENCHANTMENTS ||--o{ ITEM_INSTANCE_ENCHANTMENTS : "applied_to"
 
     INVENTORY_ITEMS ||--o| AUCTION_LISTINGS : "escrowed_in"
     AUCTION_LISTINGS ||--o{ AUCTION_BIDS : "receives"
     AUCTION_LISTINGS ||--o| LEDGER_TRANSACTIONS : "settles_in"
 
+    TRADE_GUILDS {
+        int guild_id PK
+        varchar guild_name UK
+        varchar alliance
+        bigint treasury_gold
+        bigint tax_dividend_earned
+    }
     REALMS {
         int realm_id PK
-        varchar realm_name UK
-        varchar region
+        varchar realm_name UK "Wayrest|Elden Root|Mournhold|Imperial City|Rawl'kha"
+        varchar province
+        int controlling_guild_id FK
         int tax_rate_bps "CHECK 0..2500"
+    }
+    KIOSK_BIDS {
+        int kiosk_bid_id PK
+        int realm_id FK
+        int guild_id FK
+        bigint bid_gold
+        varchar status "SEALED|WON|REFUNDED"
     }
     PLAYERS {
         int player_id PK
         varchar username UK
         int realm_id FK
-        varchar faction
+        int guild_id FK
         bigint gold_balance "CHECK >= 0"
         bigint escrow_gold "CHECK >= 0"
-    }
-    ITEM_TEMPLATES {
-        int item_id PK
-        varchar item_name UK
-        varchar category
-        varchar rarity
-        bigint base_vendor_value
-    }
-    EQUIPMENT_SPECS {
-        int item_id PK,FK
-        varchar equip_slot
-        int attack_power
-        int armor_rating
-    }
-    CONSUMABLE_SPECS {
-        int item_id PK,FK
-        varchar effect_type
-        int effect_potency
+        boolean is_banned
     }
     INVENTORY_ITEMS {
         int instance_id PK
         int item_id FK
         int owner_id FK
-        varchar mint_serial UK "Anti-Dupe ID"
+        varchar mint_serial UK "Anti-Dupe Cryptographic ID"
+        int temper_tier "0..5"
+        int bonus_power
         boolean is_escrowed
-    }
-    AUCTION_LISTINGS {
-        int listing_id PK
-        int instance_id FK
-        int seller_id FK
-        int realm_id FK
-        bigint start_price
-        bigint buyout_price
-        bigint current_bid
-        int high_bidder_id FK
-        varchar status "ACTIVE|SOLD|CANCELLED"
     }
     LEDGER_TRANSACTIONS {
         int tx_id PK
@@ -127,16 +112,16 @@ erDiagram
 
 ```text
 Scrolls-of-Agora/
-├── app.py                      # FastAPI high-concurrency trading server & barrier stress-test engine
+├── app.py                      # FastAPI dual-engine backend (PostgreSQL 18 pool + SQLite WAL fallback)
 ├── static/
-│   └── index.html              # RPG market workstation UI, 20-slot inventory bag & 24h OHLCV canvas chart
+│   └── index.html              # Interactive 5-city Tamriel map, 20-slot RPG bag, Arcane Forge & Dupe Lab UI
 ├── sql/
-│   ├── schema.sql              # PostgreSQL 18 DDL, CHECK constraints, ISA subtypes & partial indexes
-│   ├── transactions.sql        # PL/pgSQL atomic buyout & escrow bid stored functions (SELECT ... FOR UPDATE)
+│   ├── schema.sql              # PostgreSQL 18 DDL (12 tables, ISA subtypes, kiosk bids & partial indexes)
+│   ├── transactions.sql        # PL/pgSQL atomic buyout, escrow bid & Weekly Kiosk Flip procedures
 │   ├── queries.sql             # 7 Relational Algebra (π, σ, ⋈, γ, −) & SQL analytical queries
-│   └── seed.sql                # Initial trading hubs, merchants, Mythic relics, glyphs & historical ledger
+│   └── seed.sql                # 5 Tamriel hubs, Trade Guilds, Mythic relics, glyphs & RMT mule chain
 ├── compose.yml                 # Docker Compose stack (PostgreSQL 18 + pgAdmin 4)
-├── test_engine.py              # Automated concurrency & relational integrity verification suite
+├── test_engine.py              # 13-point automated concurrency, crafting, kiosk flip & SQL test suite
 └── README.md                   # Documentation
 ```
 
@@ -144,28 +129,25 @@ Scrolls-of-Agora/
 
 ## Quick Start
 
-### 1. Run the Interactive RPG Market Workstation (Zero-Config)
-Runs out of the box with Python and FastAPI:
-
+### 1. Launch the Interactive Tamriel Market Workstation
 ```bash
-pip install fastapi uvicorn pydantic
+pip install fastapi uvicorn pydantic "psycopg[binary,pool]"
 python app.py
 ```
-
 Open **[http://127.0.0.1:8090](http://127.0.0.1:8090)** in your browser:
-* **Inspect & Trade**: Hover over any item icon for its RPG combat/alchemy tooltip, click rows to inspect 24h OHLCV candlestick price action, or execute instant atomic buyouts and escrow bids.
-* **20-Slot Character Inventory Bag**: Switch active merchant characters, inspect your 5×4 inventory grid, and click any unlocked item in your bag to list it directly onto the active orderbook.
-* **100-Thread Anti-Dupe Stress Lab**: Fire 100 barrier-synchronized threads at a single 1-of-1 Mythic relic (`Elder Scroll of Chim`) and compare **Pessimistic Row Locking (`1 settled, 99 blocked, 0 dupes`)** against an **Unlocked Race Condition**.
-* **Autonomous Market Bots**: Toggle `Auto-Sim: LIVE` to watch autonomous merchant bots list items, outbid each other, and settle trades in real time.
+* **Click Any of the 5 Tamriel City Nodes** (*Wayrest*, *Elden Root*, *Mournhold*, *Imperial City*, *Rawl'kha*) on the interactive map to filter that city's local Guild Kiosk orderbook and spot **TTC Cross-City Arbitrage** badges.
+* **Temper & Enchant Gear in Your 20-Slot Bag**: Click any un-escrowed weapon or armor piece in your character's 5×4 inventory grid to either **Post it to a City Kiosk** or **Temper & Bind a Glyph** at the Arcane Forge (consumes *Dreugh Wax* from your bag and boosts item stats & value).
+* **Trigger the Weekly Kiosk Flip**: Submit a blind treasury bid under **Guild Kiosk Bids** and click **Weekly Kiosk Flip** in the top bar to resolve kiosk leases across all 5 hubs.
+* **Fire the 100-Thread Anti-Dupe Stress Lab**: Compare `SELECT ... FOR UPDATE` (`1 settled, 99 blocked, 0 dupes`) against an unprotected race condition across 100 concurrent threads.
+* **Trace & Ban the RMT Mule Ring**: Open **RMT Mule Graph** to inspect the `WITH RECURSIVE` money-laundering chain and click **Ban Ring & Seize Gold**.
 
-### 2. Run the Automated Verification Suite
+### 2. Run the 13-Point Automated Verification Suite
 ```bash
 python test_engine.py
 ```
 
-### 3. Run the PostgreSQL 18 + pgAdmin 4 Docker Stack
+### 3. Run with Docker PostgreSQL 18 + pgAdmin 4
 ```bash
 docker compose up -d
 ```
-* **PostgreSQL 18**: `localhost:5435` (`user: agora`, `db: scrolls_of_agora`)
-* **pgAdmin 4**: `http://localhost:5055`
+When the PostgreSQL 18 container is active on `localhost:5435`, `app.py` automatically detects it and upgrades its connection pool to `POSTGRESQL_18`.
