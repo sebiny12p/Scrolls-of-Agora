@@ -110,7 +110,7 @@ INSERT INTO inventory_items (instance_id, item_id, owner_id, mint_serial, temper
     (9020, 5013, 1008, 'AGORA-WSH-0020-0011AA', 0,   0,  1,  20, 0, datetime('now', '-4 days')),
     (9021, 5013, 1011, 'AGORA-WSH-0021-0022BB', 0,   0,  1,  20, 0, datetime('now', '-2 days'));
 
--- 9. AUCTION LISTINGS across the 5 Hubs
+-- 9. AUCTION LISTINGS (Active Listings 101-112 + Historical Settled Listings 201-206)
 INSERT INTO auction_listings (listing_id, instance_id, seller_id, realm_id, listing_type, start_price, buyout_price, current_bid, high_bidder_id, status, listed_at, expires_at) VALUES
     (101, 9001, 1003, 3, 'AUCTION',    165000, 245000, 175000, 1005, 'ACTIVE', datetime('now', '-18 hours'), datetime('now', '+6 hours')),
     (102, 9002, 1001, 1, 'BUYOUT_ONLY', 88000,  88000,      0, NULL, 'ACTIVE', datetime('now', '-12 hours'), datetime('now', '+12 hours')),
@@ -123,17 +123,24 @@ INSERT INTO auction_listings (listing_id, instance_id, seller_id, realm_id, list
     (109, 9009, 1001, 1, 'BUYOUT_ONLY', 34500,  34500,      0, NULL, 'ACTIVE', datetime('now', '-2 hours'),  datetime('now', '+22 hours')),
     (110, 9010, 1002, 2, 'AUCTION',     14000,  22000,      0, NULL, 'ACTIVE', datetime('now', '-90 minutes'),datetime('now', '+23 hours')),
     (111, 9011, 1001, 1, 'BUYOUT_ONLY',  4800,   4800,      0, NULL, 'ACTIVE', datetime('now', '-60 minutes'),datetime('now', '+23 hours')),
-    (112, 9012, 1007, 5, 'BUYOUT_ONLY',  1850,   1850,      0, NULL, 'ACTIVE', datetime('now', '-30 minutes'),datetime('now', '+23 hours'));
+    (112, 9012, 1007, 5, 'BUYOUT_ONLY',  1850,   1850,      0, NULL, 'ACTIVE', datetime('now', '-30 minutes'),datetime('now', '+23 hours')),
+    -- Historical Closed Listings (Separated from Active Kiosk Orderbook)
+    (201, 9020, 1003, 3, 'BUYOUT_ONLY', 210000, 210000, 210000, 1001, 'SOLD', datetime('now', '-7 days'), datetime('now', '-6 days')),
+    (202, 9021, 1001, 1, 'BUYOUT_ONLY',  85000,  85000,  85000, 1005, 'SOLD', datetime('now', '-5 days'), datetime('now', '-4 days')),
+    (203, 9020, 1004, 4, 'BUYOUT_ONLY',  26500,  26500,  26500, 1002, 'SOLD', datetime('now', '-3 days'), datetime('now', '-2 days')),
+    (204, 9020, 1008, 5, 'BUYOUT_ONLY', 320000, 320000, 320000, 1011, 'SOLD', datetime('now', '-3 days'), datetime('now', '-2 days')),
+    (205, 9021, 1011, 4, 'BUYOUT_ONLY', 310000, 310000, 310000, 1012, 'SOLD', datetime('now', '-2 days'), datetime('now', '-1 days')),
+    (206, 9020, 1012, 1, 'BUYOUT_ONLY', 305000, 305000, 305000, 1004, 'SOLD', datetime('now', '-1 days'), datetime('now', '-12 hours'));
 
 -- 10. IMMUTABLE LEDGER TRANSACTIONS (Settled Sales & RMT Mule Chain)
 INSERT INTO ledger_transactions (tx_id, listing_id, instance_id, seller_id, buyer_id, gross_price, market_tax_burned, seller_net_payout, settlement_type, executed_at) VALUES
-    (7001, 101, 9001, 1003, 1001, 210000, 10500, 199500, 'INSTANT_BUYOUT', datetime('now', '-7 days')),
-    (7002, 102, 9002, 1001, 1005,  85000,  3825,  81175, 'AUCTION_WON',    datetime('now', '-5 days')),
-    (7003, 104, 9004, 1004, 1002,  26500,  2120,  24380, 'INSTANT_BUYOUT', datetime('now', '-3 days')),
+    (7001, 201, 9020, 1003, 1001, 210000, 10500, 199500, 'INSTANT_BUYOUT', datetime('now', '-7 days')),
+    (7002, 202, 9021, 1001, 1005,  85000,  3825,  81175, 'AUCTION_WON',    datetime('now', '-5 days')),
+    (7003, 203, 9020, 1004, 1002,  26500,  2120,  24380, 'INSTANT_BUYOUT', datetime('now', '-3 days')),
     -- The 3-Hop RMT Mule Chain
-    (7004, 106, 9020, 1008, 1011, 320000, 16000, 304000, 'INSTANT_BUYOUT', datetime('now', '-3 days')),
-    (7005, 107, 9021, 1011, 1012, 310000, 15500, 294500, 'INSTANT_BUYOUT', datetime('now', '-2 days')),
-    (7006, 108, 9020, 1012, 1004, 305000, 24400, 280600, 'INSTANT_BUYOUT', datetime('now', '-1 days'));
+    (7004, 204, 9020, 1008, 1011, 320000, 16000, 304000, 'INSTANT_BUYOUT', datetime('now', '-3 days')),
+    (7005, 205, 9021, 1011, 1012, 310000, 15500, 294500, 'INSTANT_BUYOUT', datetime('now', '-2 days')),
+    (7006, 206, 9020, 1012, 1004, 305000, 24400, 280600, 'INSTANT_BUYOUT', datetime('now', '-1 days'));
 
 -- 11. OHLC PRICE HISTORY (Sample 24-hour candles)
 INSERT INTO price_history_ohlc (item_id, realm_id, bucket_timestamp, open_price, high_price, low_price, close_price, volume_traded) VALUES
@@ -149,3 +156,35 @@ INSERT INTO price_history_ohlc (item_id, realm_id, bucket_timestamp, open_price,
     (5014, 4, '18:00', 300000, 320000, 295000, 310000, 2),
     (5014, 4, '19:00', 310000, 325000, 308000, 318000, 3),
     (5014, 4, '20:00', 318000, 335000, 315000, 325000, 4);
+
+-- 12. INITIAL DOUBLE-ENTRY JOURNAL BALANCES (Historical Seed Settlements)
+INSERT INTO ledger_journal (tx_group_id, event_type, account_type, account_id, amount, description) VALUES
+    ('TX-SEED-7001', 'BUYOUT', 'PLAYER_LIQUID', '1001', -210000, 'Buyout debit: Item #9020'),
+    ('TX-SEED-7001', 'BUYOUT', 'PLAYER_LIQUID', '1003',  199500, 'Seller payout: Item #9020'),
+    ('TX-SEED-7001', 'BUYOUT', 'GUILD_TREASURY', '3',     5250, 'Kiosk cut dividend: Mournhold'),
+    ('TX-SEED-7001', 'BUYOUT', 'SYSTEM_SINK', 'MKT_TAX',   5250, 'Kiosk tax burn: Mournhold'),
+
+    ('TX-SEED-7002', 'BUYOUT', 'PLAYER_LIQUID', '1005',  -85000, 'Buyout debit: Item #9021'),
+    ('TX-SEED-7002', 'BUYOUT', 'PLAYER_LIQUID', '1001',   81175, 'Seller payout: Item #9021'),
+    ('TX-SEED-7002', 'BUYOUT', 'GUILD_TREASURY', '1',     1912, 'Kiosk cut dividend: Wayrest'),
+    ('TX-SEED-7002', 'BUYOUT', 'SYSTEM_SINK', 'MKT_TAX',   1913, 'Kiosk tax burn: Wayrest'),
+
+    ('TX-SEED-7003', 'BUYOUT', 'PLAYER_LIQUID', '1002',  -26500, 'Buyout debit: Item #9020'),
+    ('TX-SEED-7003', 'BUYOUT', 'PLAYER_LIQUID', '1004',   24380, 'Seller payout: Item #9020'),
+    ('TX-SEED-7003', 'BUYOUT', 'GUILD_TREASURY', '4',     1060, 'Kiosk cut dividend: Imperial City'),
+    ('TX-SEED-7003', 'BUYOUT', 'SYSTEM_SINK', 'MKT_TAX',   1060, 'Kiosk tax burn: Imperial City'),
+
+    ('TX-SEED-7004', 'BUYOUT', 'PLAYER_LIQUID', '1011', -320000, 'Buyout debit: Item #9020'),
+    ('TX-SEED-7004', 'BUYOUT', 'PLAYER_LIQUID', '1008',  304000, 'Seller payout: Item #9020'),
+    ('TX-SEED-7004', 'BUYOUT', 'GUILD_TREASURY', '2',     8000, 'Kiosk cut dividend: Elden Root'),
+    ('TX-SEED-7004', 'BUYOUT', 'SYSTEM_SINK', 'MKT_TAX',   8000, 'Kiosk tax burn: Elden Root'),
+
+    ('TX-SEED-7005', 'BUYOUT', 'PLAYER_LIQUID', '1012', -310000, 'Buyout debit: Item #9021'),
+    ('TX-SEED-7005', 'BUYOUT', 'PLAYER_LIQUID', '1011',  294500, 'Seller payout: Item #9021'),
+    ('TX-SEED-7005', 'BUYOUT', 'GUILD_TREASURY', '4',     7750, 'Kiosk cut dividend: Imperial City'),
+    ('TX-SEED-7005', 'BUYOUT', 'SYSTEM_SINK', 'MKT_TAX',   7750, 'Kiosk tax burn: Imperial City'),
+
+    ('TX-SEED-7006', 'BUYOUT', 'PLAYER_LIQUID', '1004', -305000, 'Buyout debit: Item #9020'),
+    ('TX-SEED-7006', 'BUYOUT', 'PLAYER_LIQUID', '1012',  280600, 'Seller payout: Item #9020'),
+    ('TX-SEED-7006', 'BUYOUT', 'GUILD_TREASURY', '4',    12200, 'Kiosk cut dividend: Imperial City'),
+    ('TX-SEED-7006', 'BUYOUT', 'SYSTEM_SINK', 'MKT_TAX',  12200, 'Kiosk tax burn: Imperial City');

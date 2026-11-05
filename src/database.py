@@ -4,10 +4,12 @@ Supports:
   1. PostgreSQL (16/17+) with psycopg ConnectionPool & true row-level locking
   2. SQLite 3 with Write-Ahead Logging (WAL) and foreign key enforcement
 
-Provides dialect adaptation, connection pooling, and transactional context managers.
+Provides dialect adaptation, connection pooling, transactional context managers,
+and double-entry general ledger journal persistence.
 """
 
 import os
+import re
 import sqlite3
 import threading
 from contextlib import contextmanager
@@ -84,27 +86,26 @@ def get_db_cursor(immediate: bool = False) -> Generator[Any, None, None]:
 
 
 def adapt_sql(sql: str) -> str:
-    """Adapts generic parameterized SQL to the active database engine dialect."""
+    """
+    Adapts generic parameterized SQL to the active database engine dialect.
+    Replaces parameter placeholders outside string literals and handles
+    standard aggregate function renames.
+    """
     if is_postgres():
-        # Replace ? placeholder with %s
-        sql = sql.replace("?", "%s")
-        # Replace SQLite string aggregation with PostgreSQL standard
-        if "GROUP_CONCAT(" in sql:
-            sql = sql.replace("GROUP_CONCAT(", "STRING_AGG(")
-        # Replace SQLite conflict clause with PostgreSQL standard
-        if "INSERT OR IGNORE INTO item_instance_enchantments" in sql:
-            sql = sql.replace(
-                "INSERT OR IGNORE INTO item_instance_enchantments",
-                "INSERT INTO item_instance_enchantments"
-            ) + " ON CONFLICT (instance_id, enchant_id) DO NOTHING"
-        # Adapt datetime functions
+        # Replace ? placeholder with %s outside single/double quoted literals
+        def replace_param(match: re.Match) -> str:
+            val = match.group(0)
+            if val.startswith("'") or val.startswith('"'):
+                return val
+            return "%s"
+
+        sql = re.sub(r"'(?:''|[^'])*'|\"(?:\"\"|[^\"])*\"|\?", replace_param, sql)
+        sql = sql.replace("GROUP_CONCAT(", "STRING_AGG(")
         sql = sql.replace("datetime('now')", "CURRENT_TIMESTAMP")
     else:
         # SQLite adjustments if coming from standard SQL
         if "STRING_AGG(" in sql:
             sql = sql.replace("STRING_AGG(", "GROUP_CONCAT(")
-        if "%s" in sql and "?" not in sql:
-            sql = sql.replace("%s", "?")
     return sql
 
 
@@ -129,6 +130,77 @@ def row_to_dict(row: Any) -> Dict[str, Any]:
 
 def rows_to_dicts(rows: List[Any]) -> List[Dict[str, Any]]:
     return [row_to_dict(r) for r in rows]
+
+
+# -----------------------------------------------------------------------------
+# Double-Entry General Ledger Journal Helpers
+# -----------------------------------------------------------------------------
+
+def record_journal_entries(
+    cur: Any,
+    tx_group_id: str,
+    event_type: str,
+    entries: List[Tuple[str, str, int, str]],  # (account_type, account_id, amount, description)
+) -> None:
+    """
+    Writes balanced journal entries to the double-entry general ledger.
+    Strict Invariant: SUM(amount) across all entries in the transaction MUST equal 0.
+    """
+    total = sum(e[2] for e in entries)
+    if total != 0:
+        raise ValueError(
+            f"Double-entry balance violation in {tx_group_id} ({event_type}): "
+            f"Net imbalance = {total} (must equal 0)."
+        )
+
+    for acct_type, acct_id, amount, desc in entries:
+        execute_sql(
+            cur,
+            """
+            INSERT INTO ledger_journal (
+                tx_group_id, event_type, account_type, account_id, amount, description
+            ) VALUES (?, ?, ?, ?, ?, ?);
+            """,
+            (tx_group_id, event_type, acct_type, str(acct_id), amount, desc),
+        )
+
+
+def audit_ledger_integrity() -> Dict[str, Any]:
+    """
+    Audits the entire general ledger to guarantee mathematical zero-imbalance
+    across all transaction groups.
+    """
+    with get_db_cursor() as cur:
+        execute_sql(cur, """
+            SELECT tx_group_id, SUM(amount) AS imbalance, COUNT(*) AS entry_count
+            FROM ledger_journal
+            GROUP BY tx_group_id
+            HAVING SUM(amount) <> 0;
+        """)
+        imbalanced = rows_to_dicts(cur.fetchall())
+
+        execute_sql(cur, """
+            SELECT
+                COUNT(DISTINCT tx_group_id) AS total_groups,
+                COUNT(*) AS total_entries,
+                COALESCE(SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END), 0) AS total_credits,
+                COALESCE(SUM(CASE WHEN amount < 0 THEN amount ELSE 0 END), 0) AS total_debits
+            FROM ledger_journal;
+        """)
+        stats_row = cur.fetchone()
+        stats = row_to_dict(stats_row) if stats_row else {}
+
+        return {
+            "is_valid": len(imbalanced) == 0,
+            "imbalanced_groups_count": len(imbalanced),
+            "imbalanced_groups": imbalanced,
+            "total_transaction_groups": stats.get("total_groups", 0),
+            "total_journal_entries": stats.get("total_entries", 0),
+            "total_credits": stats.get("total_credits", 0),
+            "total_debits": stats.get("total_debits", 0),
+            "net_system_imbalance": stats.get("total_credits", 0) + stats.get("total_debits", 0),
+            "status": "PASSED (Double-Entry Invariance 100% Balanced)" if len(imbalanced) == 0 else "FAILED",
+        }
 
 
 def init_database(force: bool = False) -> None:

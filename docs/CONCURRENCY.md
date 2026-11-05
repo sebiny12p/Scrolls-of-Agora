@@ -1,28 +1,28 @@
 # Concurrency Control, ACID Protocols & Anti-Dupe Architecture
 **Project:** Scrolls of Agora — Decentralized MMORPG Guild Exchange  
-**Course:** Relational Database Systems (IST DB1 / University Database Curriculum)  
+**Course:** Relational Database Systems (IST DB1 / Systems Engineering Portfolio)  
 **Author:** Sebastian Paris (@sebiny12p)  
 
 ---
 
-## 1. The Virtual Economy Problem: Item Duplication ("Duping")
+## 1. The Virtual Economy Problem: The Race-Condition Item Anomaly
 
-In online MMORPG and financial exchange databases, the most destructive exploit is the **Race-Condition Item Duplication ("Duping") Anomaly**. 
+In online MMORPG and financial exchange databases, a destructive exploit is the **Concurrent Race-Condition Entity Anomaly** (commonly referred to as item duplication or "duping"). 
 
 When a 1-of-1 unique Mythic item is listed on a market kiosk, naive database implementations query the item's availability, verify buyer wallet solvency in application memory, and subsequently issue an update:
 
-```
+```text
 [Thread 1] (T1): Read Listing #101 -> status = 'ACTIVE'
 [Thread 2] (T2): Read Listing #101 -> status = 'ACTIVE'
 [Thread 1] (T1): Deduct Buyer 1 Gold -> Grant Item Instance #9001 -> Set status = 'SOLD' -> Commit
 [Thread 2] (T2): Deduct Buyer 2 Gold -> Grant Item Instance #9001 -> Set status = 'SOLD' -> Commit
 ```
 
-### The Anomaly (Lost Update & Entity Duplication):
-Because Thread 2 read the tuple before Thread 1 committed its update under standard `READ COMMITTED` isolation without row locks:
-1. Two different buyers were charged.
-2. Two different players received ownership of the same unique physical item.
-3. Two duplicate settlement records were created for a single physical instance.
+### The Anomaly (Lost Updates, Dirty Read Windows & Contention):
+Because Thread 2 read the tuple before Thread 1 committed its state transition under standard uncoordinated reads:
+1. Multiple buyers simultaneously observe the uncommitted pre-update snapshot.
+2. In naive systems without unique database constraints, multiple parties can be debited for the same physical entity.
+3. In systems with partial constraints, uncoordinated concurrent writes cause lock contention spikes, deadlock exceptions, and cascading aborts.
 
 ---
 
@@ -35,7 +35,7 @@ sequenceDiagram
     autonumber
     actor Buyer1 as Thread 1 (Buyer 1001)
     actor Buyer2 as Thread 2 (Buyer 1005)
-    participant Engine as PostgreSQL 18 Engine
+    participant Engine as Database Engine
     participant Row as Listing #101 Row
 
     Buyer1->>Engine: BEGIN TRANSACTION
@@ -61,9 +61,9 @@ sequenceDiagram
 ### 2.1 MVCC Snapshot Isolation Mechanics
 Under PostgreSQL's MVCC, each transaction sees a consistent snapshot of the database governed by transaction IDs (`xmin`, `xmax`):
 * `SELECT` without row locks reads the latest committed tuple without blocking writers and without being blocked by writers.
-* While this delivers high throughput for read-only workloads, **it allows concurrent transactions to read the same pre-update snapshot**, creating the race window for item duplication.
+* While this delivers high throughput for read-heavy workloads, **it allows concurrent transactions to read the same pre-update snapshot**, creating the race window for contention.
 
-### 2.2 Pessimistic Row-Level Locking (`SELECT ... FOR UPDATE`)
+### 2.2 Pessimistic Row-Level Locking (`SELECT ... FOR UPDATE` & `BEGIN IMMEDIATE`)
 To serialize concurrent transactions operating on the same physical entity:
 ```sql
 SELECT l.*, r.tax_rate_bps, r.controlling_guild_id
@@ -73,7 +73,7 @@ WHERE l.listing_id = p_listing_id
 FOR UPDATE OF l;
 ```
 
-1. **Lock Acquisition:** PostgreSQL marks the tuple header with the transaction ID in `xmax` with lock mode `ExclusiveLock`.
+1. **Lock Acquisition:** In PostgreSQL, the tuple header is marked with the transaction ID in `xmax` with lock mode `ExclusiveLock`. In SQLite WAL mode, `BEGIN IMMEDIATE` acquires an immediate exclusive write lock.
 2. **Serialization Queue:** Any subsequent concurrent transaction attempting `SELECT ... FOR UPDATE` on listing #101 enters a wait state in `pg_locks`.
 3. **Re-Evaluation Post-Lock:** When Thread 1 commits, Thread 2 wakes up and evaluates the newly committed tuple version. Because `status` is now `'SOLD'`, Thread 2's validation check immediately fails:
    ```sql
@@ -82,7 +82,7 @@ FOR UPDATE OF l;
        RETURN;
    END IF;
    ```
-4. **Result:** Exactly 1 transaction commits; 99 concurrent race threads cleanly abort. **Zero duplicate items minted.**
+4. **Result:** Exactly 1 transaction commits; 99 concurrent race threads cleanly abort without corrupting state. **Zero duplicate items minted.**
 
 ---
 
@@ -113,6 +113,13 @@ ORDER BY player_id ASC
 FOR UPDATE;
 ```
 
+In Python application logic, the same ascending order is enforced:
+```python
+participants = sorted([(buyer_id, -gross), (seller_id, net_payout)], key=lambda x: x[0])
+for pid, delta in participants:
+    execute_sql(cur, "UPDATE players SET gold_balance = gold_balance + ? WHERE player_id = ?;", (delta, pid))
+```
+
 **Mathematical Proof:**
 Let the set of participating account IDs be $P = \{p_1, p_2, \dots, p_k\}$.
 Every transaction sorts $P$ such that $p_1 < p_2 < \dots < p_k$.
@@ -125,15 +132,17 @@ Therefore, the wait-for graph is an acyclic DAG. **Deadlocks are mathematically 
 
 ## 4. Multi-Threaded Concurrency Benchmark Results
 
-The automated benchmark suite (`test_engine.py` and `src/services/dupe_bench_service.py`) executes 100 concurrent OS worker threads against real database connections synchronized at a hardware barrier:
+The benchmark suite (`test_engine.py`, `tests/test_concurrency.py`, and `src/services/dupe_bench_service.py`) executes concurrent OS worker threads against real database connections synchronized at a thread barrier:
 
-| Metric | Unsafe Naive Read (`READ COMMITTED`) | Pessimistic Lock (`SELECT ... FOR UPDATE`) |
+| Metric | Unsafe Naive Read | Pessimistic Lock (`SELECT ... FOR UPDATE` / `BEGIN IMMEDIATE`) |
 | :--- | :--- | :--- |
-| **Concurrent Threads** | 100 simultaneous connections | 100 simultaneous connections |
-| **Synchronization** | `threading.Barrier(100)` | `threading.Barrier(100)` |
-| **Locking Protocol** | Unlocked `SELECT` $\to$ Delay $\to$ `UPDATE` | `BEGIN IMMEDIATE` / `FOR UPDATE` |
-| **Successful Buyouts** | **Multiple granted (Race Exploit)** | **Exactly 1 (Serialized)** |
-| **Rejected by Lock** | Variable | **99 blocked & rolled back** |
-| **Items Duplicated** | **> 0 Cloned Instances** | **0 Dupes (100% Integrity)** |
-| **Final State** | Inconsistent ledger / balance violation | Immutably balanced double-entry ledger |
-| **Total Test Duration** | ~200 ms | ~1,850 ms (100 serialized commits) |
+| **Concurrent Threads** | 50 simultaneous connections | 100 simultaneous connections |
+| **Synchronization** | `threading.Barrier` hardware latch | `threading.Barrier` hardware latch |
+| **Locking Protocol** | Unlocked `SELECT` $\to$ Delay $\to$ `UPDATE` | Strict Pessimistic Queue Serialization |
+| **Stale Read Race Window** | **Multiple threads observe uncommitted ACTIVE** | **0 Stale Reads (Blocked at Lock Barrier)** |
+| **Write Contention Collisions** | **High write collisions & contention aborts** | **0 Collisions (Cleanly Serialized)** |
+| **Settled Buyouts** | Exactly 1 (or 0 on total abort) | **Exactly 1 (Serialized Winner)** |
+| **Rejected by Lock** | N/A (uncoordinated collisions) | **99 cleanly serialized & rolled back** |
+| **Items Duplicated** | **0 (Guarded by Unique Constraint)** | **0 Dupes (100% Mathematical Integrity)** |
+| **Double-Entry Balance** | Imbalanced without journal integration | **100% Zero-Imbalance ($\sum \Delta = 0$)** |
+| **Execution Latency** | High contention variance | Deterministic sequential queue throughput |

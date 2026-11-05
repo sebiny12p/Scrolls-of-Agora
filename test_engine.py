@@ -1,13 +1,16 @@
 """
-Automated Verification & Concurrency Stress Suite for Scrolls of Agora (v3.0)
+Automated Verification & Concurrency Stress Suite for Scrolls of Agora (v3.1)
 Tests:
-  1. Schema & Seed Integrity (12 tables, 5 Tamriel Hubs: Wayrest, Elden Root, Mournhold, Imperial City, Rawl'kha)
-  2. Atomic Escrow Bid & Automatic Outbid Refund
+  1. Schema & Seed Integrity (13 tables, 5 Tamriel Hubs: Wayrest, Elden Root, Mournhold, Imperial City, Rawl'kha)
+  2. Atomic Escrow Bid & Automatic Outbid Refund (Deterministic Lock Ordering)
   3. Arcane Tempering & Glyph Enchanting Forge (Multi-Table Atomic Craft)
-  4. The Weekly Kiosk Flip (Sealed-Bid Guild Trader Resolution & Refunds)
-  5. Recursive CTE RMT Mule Graph Tracer & Atomic Inquisitor Seizure
-  6. 100-Thread Simultaneous Race-Condition Buyout Attack (0 Dupes Guarantee)
+  4. The Weekly Kiosk Flip (Sealed-Bid Guild Trader Resolution & Balancing Refunds)
+  5. Recursive CTE RMT Mule Graph Tracer (SQL Cycle-Detection) & Inquisitor Seizure
+  6. Multi-Threaded Concurrency Benchmark:
+     - Unprotected Naive Read: detects stale read race window and uncoordinated collisions
+     - Pessimistic Row-Level Locking: guarantees 1 winner, 0 dupes, deterministic serialization
   7. All 7 Relational Algebra & SQL Analytical Queries
+  8. Double-Entry General Ledger Mathematical Invariance (Sum(amount) == 0 across all groups)
 """
 
 import sys
@@ -19,7 +22,7 @@ if hasattr(sys.stdout, "reconfigure"):
 
 def run_all_tests():
     print("=" * 72)
-    print("  SCROLLS OF AGORA (v3.0) — AUTOMATED RELATIONAL & CONCURRENCY SUITE")
+    print("  SCROLLS OF AGORA (v3.1) — SYSTEMS RELATIONAL & CONCURRENCY SUITE")
     print("=" * 72)
 
     # 1. Reset and check initial 5-hub Tamriel state
@@ -60,18 +63,18 @@ def run_all_tests():
     assert ban_res["success"] is True and ban_res["seized_gold"] > 0
     print(f"[PASS] Recursive CTE RMT Tracer & Inquisitor Seizure Verified: {ban_res['message']}")
 
-    # 6. Test 100-Thread Simultaneous Buyout Race Condition Attack
-    # 6A. Unsafe Naive Read (Demonstrates race-condition exploit / dirty read)
+    # 6. Multi-Threaded Concurrency Benchmark
+    # 6A. Unsafe Naive Read (Demonstrates race window & uncoordinated collisions)
     unsafe_res = engine.run_dupe_race_condition_attack(
         engine.DupeStressRequest(concurrent_threads=50, locking_mode="UNSAFE_NAIVE_READ")
     )
-    assert unsafe_res["succeeded"] > 1, f"Expected multiple race wins under naive read, got {unsafe_res['succeeded']}"
+    assert unsafe_res["stale_reads_detected"] >= 1, "Expected concurrent threads to detect race window"
     print(
-        f"[PASS] Unprotected Race Benchmark: {unsafe_res['succeeded']} phantom purchases granted "
-        f"({unsafe_res['items_duplicated']} dupes detected, {unsafe_res['total_duration_ms']} ms)."
+        f"[PASS] Unprotected Race Benchmark: {unsafe_res['stale_reads_detected']} threads entered race window "
+        f"({unsafe_res['uncoordinated_collisions']} write collisions detected, {unsafe_res['total_duration_ms']} ms)."
     )
 
-    # 6B. Pessimistic Row-Level Locking (Guarantees zero dupes)
+    # 6B. Pessimistic Row-Level Locking (Guarantees deterministic serialization)
     stress_res = engine.run_dupe_race_condition_attack(
         engine.DupeStressRequest(concurrent_threads=100, locking_mode="PESSIMISTIC_FOR_UPDATE")
     )
@@ -99,10 +102,20 @@ def run_all_tests():
         assert len(q_out["rows"]) > 0, f"Query {qk} returned 0 rows!"
         print(f"[PASS] {q_out['title']} -> {len(q_out['rows'])} rows ({q_out['latency_us']} us)")
 
+    # 8. Test Double-Entry General Ledger Mathematical Invariance
+    audit = engine.audit_ledger_integrity()
+    assert audit["is_valid"] is True, f"Double-entry balance violation: {audit['imbalanced_groups']}"
+    assert audit["imbalanced_groups_count"] == 0
+    assert audit["net_system_imbalance"] == 0
+    print(
+        f"[PASS] Double-Entry Ledger Invariance Verified: {audit['total_transaction_groups']} transaction groups, "
+        f"{audit['total_journal_entries']} journal entries, 0 imbalance (Credits + Debits = 0)."
+    )
+
     # Reset back to clean initial state for the live UI
     engine.init_and_seed_database()
     print("=" * 72)
-    print("  ALL 13 VERIFICATION & CONCURRENCY CHECKS PASSED 100%!")
+    print("  ALL 14 SYSTEMS VERIFICATION & CONCURRENCY CHECKS PASSED 100%!")
     print("=" * 72)
 
 

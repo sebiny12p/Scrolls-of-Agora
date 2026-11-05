@@ -1,6 +1,6 @@
 """
 Configuration and Environment Settings for Scrolls of Agora.
-Handles database paths, PostgreSQL connection pool options, and application defaults.
+Handles database paths, PostgreSQL connection pool options, and application domain constants.
 """
 
 import os
@@ -26,3 +26,16 @@ PG_DSN = os.environ.get(
 HOST = os.environ.get("AGORA_HOST", "127.0.0.1")
 PORT = int(os.environ.get("AGORA_PORT", "8090"))
 DEBUG = os.environ.get("AGORA_DEBUG", "0") in ("1", "true", "True")
+
+# Domain Economic & Crafting Constants (Eliminating Magic Numbers)
+FORGE_FEE_GOLD = 3500
+FORGE_MAX_TEMPER_TIER = 5
+FORGE_POWER_BOOST_PER_TIER = 95
+FORGE_REAGENT_ITEM_IDS = (5011, 5012)
+FORGE_REAGENT_QTY_REQUIRED = 2
+
+MIN_ESCROW_BID_INCREMENT_PCT = 0.05
+MAX_KIOSK_TAX_RATE_BPS = 2500
+
+RMT_ANOMALY_MULTIPLIER = 15
+SYSTEM_SINK_ACCOUNT = "SYSTEM_SINK"

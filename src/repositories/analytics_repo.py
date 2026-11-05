@@ -1,14 +1,24 @@
 """
 Analytics Repository for Scrolls of Agora.
 Houses the 7 Relational Algebra analytical queries, query plan explanations,
-and the Recursive CTE (WITH RECURSIVE) RMT money-laundering graph tracer.
-Supports both PostgreSQL and SQLite WAL backends.
+the Recursive CTE (WITH RECURSIVE) RMT money-laundering graph tracer with cycle detection,
+and double-entry ledger audits.
 """
 
 import time
+import uuid
 from typing import Dict, Any, List
 
-from src.database import get_db_cursor, execute_sql, adapt_sql, row_to_dict, rows_to_dicts, is_postgres
+from src.database import (
+    get_db_cursor,
+    execute_sql,
+    adapt_sql,
+    row_to_dict,
+    rows_to_dicts,
+    is_postgres,
+    record_journal_entries,
+    audit_ledger_integrity,
+)
 
 
 ANALYTICAL_CATALOG = {
@@ -162,11 +172,12 @@ def run_analytical_query(query_key: str) -> Dict[str, Any]:
 def get_rmt_laundering_graph() -> Dict[str, Any]:
     """
     Executes a true Recursive Common Table Expression (WITH RECURSIVE)
-    to trace multi-hop gold laundering trails and cycle paths through wash-trade items.
+    with SQL-level cycle detection to trace multi-hop gold laundering trails
+    through wash-trade items.
     """
     t0 = time.perf_counter()
     with get_db_cursor() as cur:
-        # Recursive CTE that traverses recipient -> next purchase sender
+        # Recursive CTE with visited node path tracking to prevent cyclic infinite loops
         recursive_sql = """
         WITH RECURSIVE
         rmt_wash_edges AS (
@@ -197,20 +208,23 @@ def get_rmt_laundering_graph() -> Dict[str, Any]:
                 tx_id, sender_id, sender_name, recipient_id, recipient_name, recipient_banned,
                 item_name, base_vendor_value, gross_price, realm_name,
                 1 AS hop_depth,
-                sender_name || ' -> ' || recipient_name AS trail_path
+                sender_name || ' -> ' || recipient_name AS trail_path,
+                ',' || sender_id || ',' || recipient_id || ',' AS visited_nodes
             FROM rmt_wash_edges
 
             UNION ALL
 
-            -- Recursive Step: Trace recipient moving illicit gold to another player
+            -- Recursive Step: Trace recipient moving illicit gold to another player (with cycle detection)
             SELECT
                 e.tx_id, e.sender_id, e.sender_name, e.recipient_id, e.recipient_name, e.recipient_banned,
                 e.item_name, e.base_vendor_value, e.gross_price, e.realm_name,
                 c.hop_depth + 1,
-                c.trail_path || ' -> ' || e.recipient_name
+                c.trail_path || ' -> ' || e.recipient_name,
+                c.visited_nodes || e.recipient_id || ','
             FROM rmt_wash_edges e
             JOIN laundering_chain c ON e.sender_id = c.recipient_id
-            WHERE c.hop_depth < 5 AND e.tx_id <> c.tx_id
+            WHERE c.hop_depth < 5
+              AND instr(c.visited_nodes, ',' || e.recipient_id || ',') = 0
         )
         SELECT 
             tx_id, sender_id, sender_name, recipient_id, recipient_name, recipient_banned,
@@ -240,11 +254,11 @@ def get_rmt_laundering_graph() -> Dict[str, Any]:
 
 def ban_and_seize_rmt_mule_ring() -> Dict[str, Any]:
     """
-    Dynamically identifies all accounts involved in anomalous wash trading (>15x vendor value),
-    bans them, confiscates their illicit liquid gold, and deposits it into the guild treasury.
+    Identifies accounts involved in wash trading (junk items sold for >15x vendor value),
+    bans them, confiscates their illicit liquid gold, deposits it into the guild treasury,
+    and records balanced double-entry journal entries.
     """
     with get_db_cursor(immediate=True) as cur:
-        # Dynamically find suspect accounts from transaction ledger
         execute_sql(cur, """
             SELECT DISTINCT p.player_id, p.gold_balance
             FROM players p
@@ -273,21 +287,33 @@ def ban_and_seize_rmt_mule_ring() -> Dict[str, Any]:
             tuple(suspect_ids),
         )
 
-        # Deposit confiscated funds to the trade guild with lowest treasury
+        # Find target guild for deposit (the guild with lowest treasury)
+        execute_sql(cur, "SELECT guild_id FROM trade_guilds ORDER BY treasury_gold ASC LIMIT 1;")
+        g_row = cur.fetchone()
+        dest_guild_id = g_row["guild_id"] if g_row else 1
+
+        # Deposit confiscated funds
         if total_seized > 0:
             execute_sql(
                 cur,
-                """
-                UPDATE trade_guilds
-                SET treasury_gold = treasury_gold + ?
-                WHERE guild_id = (SELECT guild_id FROM trade_guilds ORDER BY treasury_gold ASC LIMIT 1);
-                """,
-                (total_seized,),
+                "UPDATE trade_guilds SET treasury_gold = treasury_gold + ? WHERE guild_id = ?;",
+                (total_seized, dest_guild_id),
             )
+
+            # Record balancing double-entry journal entries: Confiscate from suspects, Credit guild treasury
+            tx_group_seize = f"TX-SEIZE-{uuid.uuid4().hex[:6]}"
+            journal_entries = [
+                ("PLAYER_LIQUID", str(s["player_id"]), -s["gold_balance"], f"Illicit gold confiscated from player #{s['player_id']}")
+                for s in suspects if s["gold_balance"] > 0
+            ]
+            journal_entries.append(
+                ("GUILD_TREASURY", str(dest_guild_id), total_seized, f"Inquisitor confiscated gold deposit to Guild #{dest_guild_id}")
+            )
+            record_journal_entries(cur, tx_group_seize, "SEIZURE", journal_entries)
 
         return {
             "success": True,
             "banned_accounts": len(suspect_ids),
             "seized_gold": total_seized,
-            "message": f"Fraud Audit Executed: Dynamically banned {len(suspect_ids)} accounts in wash ring & confiscated {total_seized:,}g illicit gold.",
+            "message": f"Fraud Audit Executed: Banned {len(suspect_ids)} accounts in wash ring & confiscated {total_seized:,}g illicit gold.",
         }

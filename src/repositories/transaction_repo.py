@@ -5,6 +5,7 @@ Implements ACID-compliant multi-table database transactions:
   2. Escrow Bid Locking & Automatic Outbid Refunds
   3. Arcane Forge Crafting (Multi-Table Inventory, Wallets & Enchantment Binding)
   4. Weekly Sealed-Bid Kiosk Auction Settlement & Loser Refunds
+  5. True Double-Entry General Ledger Journal Invariance
 """
 
 import random
@@ -13,6 +14,15 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, List
 
+from src.config import (
+    FORGE_FEE_GOLD,
+    FORGE_MAX_TEMPER_TIER,
+    FORGE_POWER_BOOST_PER_TIER,
+    FORGE_REAGENT_ITEM_IDS,
+    FORGE_REAGENT_QTY_REQUIRED,
+    MIN_ESCROW_BID_INCREMENT_PCT,
+    SYSTEM_SINK_ACCOUNT,
+)
 from src.database import (
     get_db_cursor,
     execute_sql,
@@ -20,6 +30,7 @@ from src.database import (
     PG_POOL,
     row_to_dict,
     rows_to_dicts,
+    record_journal_entries,
 )
 
 
@@ -74,7 +85,23 @@ def _execute_sqlite_buyout(listing_id: int, buyer_id: int, t0: float) -> Dict[st
         if buyer["gold_balance"] < listing["buyout_price"]:
             return {"success": False, "code": "ERR_INSUFFICIENT_GOLD", "message": "Insufficient liquid gold."}
 
-        # Step 4: Refund Escrow to Previous Outbid Player
+        # Step 4: Compute Kiosk Cut & Guild Dividend
+        gross = int(listing["buyout_price"])
+        tax = (gross * int(listing["tax_rate_bps"])) // 10000
+        net_payout = gross - tax
+        guild_dividend = tax // 2 if listing["controlling_guild_id"] else 0
+        tax_burned = tax - guild_dividend
+
+        # Step 5: Deterministic Wallet Balance Updates (ORDER BY player_id ASC)
+        participants = sorted([
+            (buyer_id, -gross),
+            (listing["seller_id"], net_payout)
+        ], key=lambda x: x[0])
+
+        for pid, delta in participants:
+            execute_sql(cur, "UPDATE players SET gold_balance = gold_balance + ? WHERE player_id = ?;", (delta, pid))
+
+        # Refund Escrow to Previous Outbid Player if present
         if listing["high_bidder_id"] is not None and listing["current_bid"] > 0:
             execute_sql(cur, """
                 UPDATE players
@@ -83,12 +110,7 @@ def _execute_sqlite_buyout(listing_id: int, buyer_id: int, t0: float) -> Dict[st
                 WHERE player_id = ?;
             """, (listing["current_bid"], listing["current_bid"], listing["high_bidder_id"]))
 
-        # Step 5: Compute Kiosk Cut & Guild Dividend
-        gross = int(listing["buyout_price"])
-        tax = (gross * int(listing["tax_rate_bps"])) // 10000
-        net_payout = gross - tax
-        guild_dividend = tax // 2
-
+        # Credit Guild Dividend if kiosk is controlled
         if listing["controlling_guild_id"] and guild_dividend > 0:
             execute_sql(
                 cur,
@@ -96,9 +118,7 @@ def _execute_sqlite_buyout(listing_id: int, buyer_id: int, t0: float) -> Dict[st
                 (guild_dividend, guild_dividend, listing["controlling_guild_id"]),
             )
 
-        execute_sql(cur, "UPDATE players SET gold_balance = gold_balance - ? WHERE player_id = ?;", (gross, buyer_id))
-        execute_sql(cur, "UPDATE players SET gold_balance = gold_balance + ? WHERE player_id = ?;", (net_payout, listing["seller_id"]))
-
+        # Step 6: Transfer Item Ownership & Close Listing
         execute_sql(
             cur,
             "UPDATE inventory_items SET owner_id = ?, is_escrowed = 0 WHERE instance_id = ?;",
@@ -111,6 +131,7 @@ def _execute_sqlite_buyout(listing_id: int, buyer_id: int, t0: float) -> Dict[st
             (buyer_id, gross, listing_id),
         )
 
+        # Step 7: Record Settlement Receipt
         now_str = utc_now().strftime("%Y-%m-%d %H:%M:%S")
         execute_sql(cur, """
             INSERT INTO ledger_transactions (
@@ -120,6 +141,24 @@ def _execute_sqlite_buyout(listing_id: int, buyer_id: int, t0: float) -> Dict[st
         """, (listing_id, listing["instance_id"], listing["seller_id"], buyer_id, gross, tax, net_payout, now_str))
 
         tx_id = getattr(cur, "lastrowid", None)
+
+        # Step 8: Double-Entry General Ledger Journal (Strict Sum(amount) == 0)
+        tx_group_id = f"TX-BUYOUT-{listing_id}-{uuid.uuid4().hex[:6]}"
+        journal_entries = [
+            ("PLAYER_LIQUID", str(buyer_id), -gross, f"Buyout debit for Listing #{listing_id}"),
+            ("PLAYER_LIQUID", str(listing["seller_id"]), net_payout, f"Seller net payout for Listing #{listing_id}"),
+        ]
+        if guild_dividend > 0:
+            journal_entries.append(
+                ("GUILD_TREASURY", str(listing["controlling_guild_id"]), guild_dividend, f"Kiosk dividend for Listing #{listing_id}")
+            )
+        if tax_burned > 0:
+            journal_entries.append(
+                ("SYSTEM_SINK", SYSTEM_SINK_ACCOUNT, tax_burned, f"Kiosk tax burn for Listing #{listing_id}")
+            )
+
+        record_journal_entries(cur, tx_group_id, "BUYOUT", journal_entries)
+
         lat_ms = round((time.perf_counter() - t0) * 1000, 2)
         return {
             "success": True,
@@ -132,7 +171,7 @@ def _execute_sqlite_buyout(listing_id: int, buyer_id: int, t0: float) -> Dict[st
             "mint_serial": listing["mint_serial"],
             "item_name": listing["item_name"],
             "latency_ms": lat_ms,
-            "message": f"ACID Buyout Settled: Acquired [{listing['item_name']}] for {gross:,}g ({tax:,}g burned in taxes).",
+            "message": f"ACID Buyout Settled: Acquired [{listing['item_name']}] for {gross:,}g ({tax:,}g burned/split in taxes).",
         }
 
 
@@ -144,6 +183,27 @@ def _execute_postgres_buyout(listing_id: int, buyer_id: int, t0: float) -> Dict[
                     cur.execute("SELECT * FROM execute_atomic_buyout(%s, %s);", (listing_id, buyer_id))
                     res = cur.fetchone()
                     lat_ms = round((time.perf_counter() - t0) * 1000, 2)
+
+                    # Also record double-entry journal if successful
+                    if res["success"]:
+                        gross = int(res["gross_paid"])
+                        tax = int(res["tax_burned"])
+                        net_payout = int(res["seller_payout"])
+                        guild_dividend = tax // 2
+                        tax_burned = tax - guild_dividend
+
+                        tx_group_id = f"TX-BUYOUT-PG-{listing_id}-{uuid.uuid4().hex[:6]}"
+                        journal_entries = [
+                            ("PLAYER_LIQUID", str(buyer_id), -gross, f"Buyout debit for Listing #{listing_id}"),
+                            ("PLAYER_LIQUID", str(res.get("seller_id", "SELLER")), net_payout, f"Seller payout for #{listing_id}"),
+                        ]
+                        if guild_dividend > 0:
+                            journal_entries.append(("GUILD_TREASURY", "GUILD", guild_dividend, "Kiosk dividend"))
+                        if tax_burned > 0:
+                            journal_entries.append(("SYSTEM_SINK", SYSTEM_SINK_ACCOUNT, tax_burned, "Tax burn"))
+
+                        record_journal_entries(cur, tx_group_id, "BUYOUT", journal_entries)
+
                     return {
                         "success": res["success"],
                         "code": res["code"],
@@ -168,9 +228,10 @@ def place_escrow_bid(listing_id: int, bidder_id: int, bid_amount: int) -> Dict[s
         if listing["seller_id"] == bidder_id:
             return {"success": False, "message": "Seller cannot bid on own item."}
 
-        min_req = listing["start_price"] if listing["current_bid"] == 0 else int(listing["current_bid"] * 1.05) + 1
+        min_increment = 1.0 + MIN_ESCROW_BID_INCREMENT_PCT
+        min_req = listing["start_price"] if listing["current_bid"] == 0 else int(listing["current_bid"] * min_increment) + 1
         if bid_amount < min_req:
-            return {"success": False, "message": f"Minimum required bid is {min_req:,}g (+5% increment)."}
+            return {"success": False, "message": f"Minimum required bid is {min_req:,}g (+{int(MIN_ESCROW_BID_INCREMENT_PCT*100)}% increment)."}
 
         if listing["buyout_price"] and bid_amount >= listing["buyout_price"]:
             return execute_pessimistic_buyout(listing_id, bidder_id)
@@ -180,19 +241,46 @@ def place_escrow_bid(listing_id: int, bidder_id: int, bid_amount: int) -> Dict[s
         if not bidder or bidder["gold_balance"] < bid_amount:
             return {"success": False, "message": "Insufficient liquid gold for escrow lock."}
 
-        # Refund previous bidder
-        if listing["high_bidder_id"] is not None and listing["current_bid"] > 0:
+        # Deterministic Lock Ordering on Participant Wallets
+        prior_bidder_id = listing["high_bidder_id"]
+        prior_bid = listing["current_bid"]
+
+        if prior_bidder_id is not None and prior_bid > 0:
+            # Ascending player lock ordering
+            for pid in sorted([bidder_id, prior_bidder_id]):
+                if pid == prior_bidder_id:
+                    # Refund previous bidder
+                    execute_sql(
+                        cur,
+                        "UPDATE players SET escrow_gold = escrow_gold - ?, gold_balance = gold_balance + ? WHERE player_id = ?;",
+                        (prior_bid, prior_bid, prior_bidder_id),
+                    )
+                else:
+                    # Lock new bidder's gold into escrow
+                    execute_sql(
+                        cur,
+                        "UPDATE players SET gold_balance = gold_balance - ?, escrow_gold = escrow_gold + ? WHERE player_id = ?;",
+                        (bid_amount, bid_amount, bidder_id),
+                    )
+            # Record balancing journal entries for the refund
+            tx_group_refund = f"TX-ESCREF-{listing_id}-{uuid.uuid4().hex[:6]}"
+            record_journal_entries(cur, tx_group_refund, "ESCROW_REFUND", [
+                ("PLAYER_ESCROW", str(prior_bidder_id), -prior_bid, f"Escrow release for outbid Listing #{listing_id}"),
+                ("PLAYER_LIQUID", str(prior_bidder_id), prior_bid, f"Liquid gold refund for outbid Listing #{listing_id}"),
+            ])
+        else:
             execute_sql(
                 cur,
-                "UPDATE players SET escrow_gold = escrow_gold - ?, gold_balance = gold_balance + ? WHERE player_id = ?;",
-                (listing["current_bid"], listing["current_bid"], listing["high_bidder_id"]),
+                "UPDATE players SET gold_balance = gold_balance - ?, escrow_gold = escrow_gold + ? WHERE player_id = ?;",
+                (bid_amount, bid_amount, bidder_id),
             )
 
-        execute_sql(
-            cur,
-            "UPDATE players SET gold_balance = gold_balance - ?, escrow_gold = escrow_gold + ? WHERE player_id = ?;",
-            (bid_amount, bid_amount, bidder_id),
-        )
+        # Record balancing journal entries for the new bid lock
+        tx_group_bid = f"TX-ESCLOCK-{listing_id}-{uuid.uuid4().hex[:6]}"
+        record_journal_entries(cur, tx_group_bid, "ESCROW_LOCK", [
+            ("PLAYER_LIQUID", str(bidder_id), -bid_amount, f"Liquid debit for Escrow bid on #{listing_id}"),
+            ("PLAYER_ESCROW", str(bidder_id), bid_amount, f"Escrow lock credit for bid on #{listing_id}"),
+        ])
 
         execute_sql(
             cur,
@@ -265,33 +353,45 @@ def temper_and_enchant_item(instance_id: int, player_id: int, enchant_id: int = 
             return {"success": False, "message": "Cannot temper an item while it is escrowed on a Kiosk."}
         if gear["category"] not in ("Weapon", "Armor", "Artifact"):
             return {"success": False, "message": "Only Weapons, Armor, and Artifacts can be tempered at the Arcane Forge."}
-        if gear["temper_tier"] >= 5:
-            return {"success": False, "message": "Item has already reached Maximum Mythic Temper Tier (+5)."}
+        if gear["temper_tier"] >= FORGE_MAX_TEMPER_TIER:
+            return {"success": False, "message": f"Item has already reached Maximum Mythic Temper Tier (+{FORGE_MAX_TEMPER_TIER})."}
 
-        forge_fee = 3500
         execute_sql(cur, "SELECT gold_balance FROM players WHERE player_id = ?;", (player_id,))
         p_row = cur.fetchone()
-        if not p_row or p_row["gold_balance"] < forge_fee:
-            return {"success": False, "message": f"Requires {forge_fee:,}g gold for Arcane Forge tempering."}
+        if not p_row or p_row["gold_balance"] < FORGE_FEE_GOLD:
+            return {"success": False, "message": f"Requires {FORGE_FEE_GOLD:,}g gold for Arcane Forge tempering."}
 
-        execute_sql(cur, """
+        # Check for crafting reagents
+        reagent_placeholders = ",".join("?" for _ in FORGE_REAGENT_ITEM_IDS)
+        execute_sql(cur, f"""
             SELECT instance_id, stack_size, item_id FROM inventory_items
-            WHERE owner_id = ? AND item_id IN (5011, 5012) AND is_escrowed = 0 AND stack_size >= 2
+            WHERE owner_id = ? AND item_id IN ({reagent_placeholders}) AND is_escrowed = 0 AND stack_size >= ?
             LIMIT 1;
-        """, (player_id,))
+        """, (player_id, *FORGE_REAGENT_ITEM_IDS, FORGE_REAGENT_QTY_REQUIRED))
         reagent = cur.fetchone()
-        reagent_msg = "3,500g Forge Gold"
+        reagent_msg = f"{FORGE_FEE_GOLD:,}g Forge Gold"
         if reagent:
-            if reagent["stack_size"] > 2:
-                execute_sql(cur, "UPDATE inventory_items SET stack_size = stack_size - 2 WHERE instance_id = ?;", (reagent["instance_id"],))
+            if reagent["stack_size"] > FORGE_REAGENT_QTY_REQUIRED:
+                execute_sql(
+                    cur,
+                    "UPDATE inventory_items SET stack_size = stack_size - ? WHERE instance_id = ?;",
+                    (FORGE_REAGENT_QTY_REQUIRED, reagent["instance_id"]),
+                )
             else:
                 execute_sql(cur, "DELETE FROM inventory_items WHERE instance_id = ?;", (reagent["instance_id"],))
-            reagent_msg = "2x Dreugh Wax/Resin + 3,500g"
+            reagent_msg = f"{FORGE_REAGENT_QTY_REQUIRED}x Dreugh Wax/Resin + {FORGE_FEE_GOLD:,}g"
 
-        execute_sql(cur, "UPDATE players SET gold_balance = gold_balance - ? WHERE player_id = ?;", (forge_fee, player_id))
+        execute_sql(cur, "UPDATE players SET gold_balance = gold_balance - ? WHERE player_id = ?;", (FORGE_FEE_GOLD, player_id))
+
+        # Record balancing journal entry: Player liquid debit, System sink credit
+        tx_group_forge = f"TX-FORGE-{instance_id}-{uuid.uuid4().hex[:6]}"
+        record_journal_entries(cur, tx_group_forge, "FORGE_FEE", [
+            ("PLAYER_LIQUID", str(player_id), -FORGE_FEE_GOLD, f"Arcane Forge fee for tempering Item #{instance_id}"),
+            ("SYSTEM_SINK", SYSTEM_SINK_ACCOUNT, FORGE_FEE_GOLD, f"Arcane Forge sink fee for Item #{instance_id}"),
+        ])
 
         new_tier = gear["temper_tier"] + 1
-        power_boost = 95 * new_tier
+        power_boost = FORGE_POWER_BOOST_PER_TIER * new_tier
         new_serial = f"AGORA-TMPR{new_tier}-{uuid.uuid4().hex[:6].upper()}"
 
         execute_sql(cur, """
@@ -300,9 +400,14 @@ def temper_and_enchant_item(instance_id: int, player_id: int, enchant_id: int = 
             WHERE instance_id = ?;
         """, (new_tier, power_boost, new_serial, instance_id))
 
+        # Standard SQL ON CONFLICT syntax natively supported in SQLite 3.24+ and PostgreSQL
         execute_sql(
             cur,
-            "INSERT OR IGNORE INTO item_instance_enchantments (instance_id, enchant_id) VALUES (?, ?);",
+            """
+            INSERT INTO item_instance_enchantments (instance_id, enchant_id)
+            VALUES (?, ?)
+            ON CONFLICT (instance_id, enchant_id) DO NOTHING;
+            """,
             (instance_id, enchant_id),
         )
         execute_sql(cur, "SELECT enchant_name FROM enchantments WHERE enchant_id = ?;", (enchant_id,))
@@ -333,6 +438,14 @@ def place_kiosk_bid(realm_id: int, guild_id: int, bid_gold: int) -> Dict[str, An
             "INSERT INTO kiosk_bids (realm_id, guild_id, bid_gold, status) VALUES (?, ?, ?, 'SEALED');",
             (realm_id, guild_id, bid_gold),
         )
+
+        # Record balancing journal entry: Guild treasury debit, System escrow credit
+        tx_group_kbid = f"TX-KBID-{realm_id}-{guild_id}-{uuid.uuid4().hex[:6]}"
+        record_journal_entries(cur, tx_group_kbid, "KIOSK_BID", [
+            ("GUILD_TREASURY", str(guild_id), -bid_gold, f"Sealed kiosk bid for {realm['realm_name']}"),
+            ("SYSTEM_SINK", f"ESCROW_KIOSK_{realm_id}", bid_gold, f"Escrow lock for {realm['realm_name']} kiosk bid"),
+        ])
+
         return {
             "success": True,
             "message": f"Sealed blind bid of {bid_gold:,}g submitted by [{guild['guild_name']}] for {realm['realm_name']} Kiosk!",
@@ -375,11 +488,25 @@ def trigger_weekly_kiosk_flip() -> Dict[str, Any]:
             execute_sql(cur, "UPDATE kiosk_bids SET status = 'WON' WHERE kiosk_bid_id = ?;", (winner["kiosk_bid_id"],))
             execute_sql(cur, "UPDATE realms SET controlling_guild_id = ? WHERE realm_id = ?;", (winner["guild_id"], rid))
 
+            # Record winning lease fee journal entry (transfers from escrow to system sink)
+            tx_group_win = f"TX-KWIN-{rid}-{winner['guild_id']}-{uuid.uuid4().hex[:6]}"
+            record_journal_entries(cur, tx_group_win, "KIOSK_WIN_FEE", [
+                ("SYSTEM_SINK", f"ESCROW_KIOSK_{rid}", -winner["bid_gold"], f"Kiosk lease escrow release for {r['realm_name']}"),
+                ("SYSTEM_SINK", SYSTEM_SINK_ACCOUNT, winner["bid_gold"], f"Kiosk lease fee settled for {r['realm_name']}"),
+            ])
+
             refunded_count = 0
             for loser in bids[1:]:
                 execute_sql(cur, "UPDATE kiosk_bids SET status = 'REFUNDED' WHERE kiosk_bid_id = ?;", (loser["kiosk_bid_id"],))
                 execute_sql(cur, "UPDATE trade_guilds SET treasury_gold = treasury_gold + ? WHERE guild_id = ?;", (loser["bid_gold"], loser["guild_id"]))
                 refunded_count += 1
+
+                # Record refund journal entry
+                tx_group_ref = f"TX-KREF-{loser['kiosk_bid_id']}-{uuid.uuid4().hex[:6]}"
+                record_journal_entries(cur, tx_group_ref, "KIOSK_REFUND", [
+                    ("SYSTEM_SINK", f"ESCROW_KIOSK_{rid}", -loser["bid_gold"], f"Losing kiosk bid escrow refund for {r['realm_name']}"),
+                    ("GUILD_TREASURY", str(loser["guild_id"]), loser["bid_gold"], f"Losing kiosk bid refund to treasury"),
+                ])
 
             flips.append({
                 "realm": r["realm_name"],

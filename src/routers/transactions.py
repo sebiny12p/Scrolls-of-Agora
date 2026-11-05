@@ -14,7 +14,7 @@ from src.repositories.transaction_repo import (
     place_kiosk_bid,
     trigger_weekly_kiosk_flip,
 )
-from src.database import get_sqlite_conn
+from src.database import get_db_cursor, execute_sql, rows_to_dicts, row_to_dict
 
 router = APIRouter(tags=["ACID Transactions"])
 
@@ -69,11 +69,9 @@ def api_kiosk_flip():
 
 @router.post("/api/bot-tick")
 def trigger_autonomous_market_bot():
-    conn = get_sqlite_conn()
-    cur = conn.cursor()
-    try:
-        cur.execute("SELECT listing_id, seller_id, current_bid, start_price, buyout_price FROM auction_listings WHERE status = 'ACTIVE';")
-        active = cur.fetchall()
+    with get_db_cursor(immediate=True) as cur:
+        execute_sql(cur, "SELECT listing_id, seller_id, current_bid, start_price, buyout_price FROM auction_listings WHERE status = 'ACTIVE';")
+        active = rows_to_dicts(cur.fetchall())
 
         action_roll = random.random()
         candidates = [1001, 1002, 1003, 1004, 1006, 1007, 1009, 1010]
@@ -83,26 +81,38 @@ def trigger_autonomous_market_bot():
             templates = [5003, 5004, 5006, 5007, 5008, 5009, 5010, 5011, 5012]
             chosen_item = random.choice(templates)
             chosen_seller = random.choice(candidates)
-            cur.execute("SELECT item_name, base_vendor_value FROM item_templates WHERE item_id = ?;", (chosen_item,))
+            execute_sql(cur, "SELECT item_name, base_vendor_value FROM item_templates WHERE item_id = ?;", (chosen_item,))
             t_row = cur.fetchone()
-            b_val = t_row["base_vendor_value"] if t_row else 1000
+            t_dict = row_to_dict(t_row)
+            b_val = t_dict.get("base_vendor_value", 1000)
 
             markup = random.uniform(1.2, 2.4)
             buyout = int(max(100, b_val * markup))
             start_p = int(buyout * 0.7)
             rid = random.randint(1, 5)
+            serial = f"AGORA-BOT-{random.randint(10000, 99999)}"
 
-            cur.execute(
+            execute_sql(
+                cur,
                 "INSERT INTO inventory_items (item_id, owner_id, mint_serial, temper_tier, bonus_power, stack_size, is_escrowed) VALUES (?, ?, ?, 0, 0, 1, 1);",
-                (chosen_item, chosen_seller, f"AGORA-BOT-{random.randint(10000, 99999)}"),
+                (chosen_item, chosen_seller, serial),
             )
-            inst_id = cur.lastrowid
+            inst_id = getattr(cur, "lastrowid", None)
+            if inst_id is None:
+                execute_sql(cur, "SELECT instance_id FROM inventory_items WHERE mint_serial = ?;", (serial,))
+                row = cur.fetchone()
+                inst_id = row["instance_id"] if hasattr(row, "keys") else row[0]
+
             res = list_inventory_item(inst_id, chosen_seller, rid, start_p, buyout)
             return {"action": "NEW_LISTING", "detail": res.get("message", "Created bot listing")}
 
         elif active:
             target = random.choice(active)
-            buyer = random.choice([b for b in candidates if b != target["seller_id"]])
+            potential_buyers = [b for b in candidates if b != target["seller_id"]]
+            if not potential_buyers:
+                return {"action": "IDLE", "detail": "No eligible buyers."}
+            buyer = random.choice(potential_buyers)
+
             if target["buyout_price"] and (random.random() < 0.40):
                 res = execute_pessimistic_buyout(target["listing_id"], buyer)
                 return {"action": "BUYOUT", "detail": res.get("message", "Executed buyout")}
@@ -113,5 +123,3 @@ def trigger_autonomous_market_bot():
                 return {"action": "BID", "detail": res.get("message", "Placed bid")}
 
         return {"action": "IDLE", "detail": "Market equilibrium stable."}
-    finally:
-        conn.close()

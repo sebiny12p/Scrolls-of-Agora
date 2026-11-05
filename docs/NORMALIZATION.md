@@ -166,3 +166,4 @@ In production relational database engineering, selective denormalization is occa
 | `auction_bids` | `bid_id` | `bid_id` | **BCNF** | 2 (`listing_id`, `bidder_id`) |
 | `ledger_transactions` | `tx_id` | `tx_id`, `listing_id` | **BCNF** | 4 (`listing_id`, `instance_id`, `seller_id`, `buyer_id`) |
 | `price_history_ohlc` | `candle_id` | `candle_id` | **3NF** (OLAP Rollup) | 2 (`item_id`, `realm_id`) |
+| `ledger_journal` | `entry_id` | `entry_id` | **BCNF** | 0 (Polymorphic chart-of-accounts) |

@@ -169,6 +169,28 @@ INSERT INTO ledger_transactions (
     -- Hop 3: RMT_Syndicate_Boss (1012) extracts 290,000g via junk wash trade
     (504, 204, 9024, 1012, 1011, 290000, 23200, 266800, 'INSTANT_BUYOUT', CURRENT_TIMESTAMP - INTERVAL '4 hours');
 
+-- 13. INITIAL DOUBLE-ENTRY JOURNAL BALANCES
+INSERT INTO ledger_journal (tx_group_id, event_type, account_type, account_id, amount, description) VALUES
+    ('TX-SEED-501', 'BUYOUT', 'PLAYER_LIQUID', '1005', -175000, 'Buyout debit: Item #9021'),
+    ('TX-SEED-501', 'BUYOUT', 'PLAYER_LIQUID', '1001',  166250, 'Seller payout: Item #9021'),
+    ('TX-SEED-501', 'BUYOUT', 'GUILD_TREASURY', '3',     4375, 'Kiosk cut dividend'),
+    ('TX-SEED-501', 'BUYOUT', 'SYSTEM_SINK', 'MKT_TAX',   4375, 'Kiosk tax burn'),
+
+    ('TX-SEED-502', 'BUYOUT', 'PLAYER_LIQUID', '1011', -320000, 'Buyout debit: Item #9022'),
+    ('TX-SEED-502', 'BUYOUT', 'PLAYER_LIQUID', '1008',  308800, 'Seller payout: Item #9022'),
+    ('TX-SEED-502', 'BUYOUT', 'GUILD_TREASURY', '5',     5600, 'Kiosk cut dividend'),
+    ('TX-SEED-502', 'BUYOUT', 'SYSTEM_SINK', 'MKT_TAX',   5600, 'Kiosk tax burn'),
+
+    ('TX-SEED-503', 'BUYOUT', 'PLAYER_LIQUID', '1004', -305000, 'Buyout debit: Item #9023'),
+    ('TX-SEED-503', 'BUYOUT', 'PLAYER_LIQUID', '1011',  291275, 'Seller payout: Item #9023'),
+    ('TX-SEED-503', 'BUYOUT', 'GUILD_TREASURY', '1',     6862, 'Kiosk cut dividend'),
+    ('TX-SEED-503', 'BUYOUT', 'SYSTEM_SINK', 'MKT_TAX',   6863, 'Kiosk tax burn'),
+
+    ('TX-SEED-504', 'BUYOUT', 'PLAYER_LIQUID', '1011', -290000, 'Buyout debit: Item #9024'),
+    ('TX-SEED-504', 'BUYOUT', 'PLAYER_LIQUID', '1012',  266800, 'Seller payout: Item #9024'),
+    ('TX-SEED-504', 'BUYOUT', 'GUILD_TREASURY', '4',    11600, 'Kiosk cut dividend'),
+    ('TX-SEED-504', 'BUYOUT', 'SYSTEM_SINK', 'MKT_TAX',  11600, 'Kiosk tax burn');
+
 -- Synchronize PostgreSQL sequences
 SELECT setval('trade_guilds_guild_id_seq', 5, true);
 SELECT setval('realms_realm_id_seq', 5, true);
@@ -179,5 +201,6 @@ SELECT setval('enchantments_enchant_id_seq', 5, true);
 SELECT setval('inventory_items_instance_id_seq', 9024, true);
 SELECT setval('auction_listings_listing_id_seq', 204, true);
 SELECT setval('ledger_transactions_tx_id_seq', 504, true);
+SELECT setval('ledger_journal_entry_id_seq', 16, true);
 
 COMMIT;

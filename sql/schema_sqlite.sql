@@ -1,8 +1,9 @@
 -- ============================================================================
 -- SCROLLS OF AGORA: RELATIONAL DDL (SQLite WAL Engine)
--- 12 Normalized Relations (BCNF / 3NF), Foreign Keys & Partial Covering Indexes
+-- 13 Normalized Relations (BCNF / 3NF), Foreign Keys & Partial Covering Indexes
 -- ============================================================================
 
+DROP TABLE IF EXISTS ledger_journal;
 DROP TABLE IF EXISTS price_history_ohlc;
 DROP TABLE IF EXISTS ledger_transactions;
 DROP TABLE IF EXISTS auction_bids;
@@ -48,7 +49,7 @@ CREATE TABLE kiosk_bids (
     guild_id INTEGER NOT NULL REFERENCES trade_guilds(guild_id) ON DELETE CASCADE,
     bid_gold INTEGER NOT NULL CHECK (bid_gold > 0),
     status TEXT NOT NULL DEFAULT 'SEALED' CHECK (status IN ('SEALED', 'WON', 'REFUNDED')),
-    placed_at TEXT NOT NULL DEFAULT (datetime('now'))
+    placed_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
 );
 
 -- 4. PLAYERS (With strict non-negative wallet, escrow & anti-cheat ban status)
@@ -64,7 +65,7 @@ CREATE TABLE players (
     escrow_gold INTEGER NOT NULL DEFAULT 0 CHECK (escrow_gold >= 0),
     reputation_score INTEGER NOT NULL DEFAULT 100 CHECK (reputation_score >= 0),
     is_banned INTEGER NOT NULL DEFAULT 0,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
 );
 
 -- 5. ITEM TEMPLATES (Supertype in ISA Generalization Hierarchy)
@@ -110,7 +111,7 @@ CREATE TABLE inventory_items (
     stack_size INTEGER NOT NULL DEFAULT 1 CHECK (stack_size > 0),
     current_durability INTEGER NOT NULL DEFAULT 100 CHECK (current_durability >= 0),
     is_escrowed INTEGER NOT NULL DEFAULT 0,
-    minted_at TEXT NOT NULL DEFAULT (datetime('now'))
+    minted_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
 );
 
 -- 8. ENCHANTMENTS & M:N JUNCTION TABLE
@@ -125,7 +126,7 @@ CREATE TABLE enchantments (
 CREATE TABLE item_instance_enchantments (
     instance_id INTEGER NOT NULL REFERENCES inventory_items(instance_id) ON DELETE CASCADE,
     enchant_id INTEGER NOT NULL REFERENCES enchantments(enchant_id) ON DELETE RESTRICT,
-    applied_at TEXT NOT NULL DEFAULT (datetime('now')),
+    applied_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
     PRIMARY KEY (instance_id, enchant_id)
 );
 
@@ -152,10 +153,10 @@ CREATE TABLE auction_bids (
     listing_id INTEGER NOT NULL REFERENCES auction_listings(listing_id) ON DELETE CASCADE,
     bidder_id INTEGER NOT NULL REFERENCES players(player_id) ON DELETE RESTRICT,
     bid_amount INTEGER NOT NULL CHECK (bid_amount > 0),
-    placed_at TEXT NOT NULL DEFAULT (datetime('now'))
+    placed_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
 );
 
--- 11. IMMUTABLE LEDGER TRANSACTIONS (Double-Entry Financial Settlement)
+-- 11. IMMUTABLE LEDGER TRANSACTIONS (High-Level Settlement Receipts)
 CREATE TABLE ledger_transactions (
     tx_id INTEGER PRIMARY KEY AUTOINCREMENT,
     listing_id INTEGER NOT NULL UNIQUE REFERENCES auction_listings(listing_id) ON DELETE RESTRICT,
@@ -166,7 +167,7 @@ CREATE TABLE ledger_transactions (
     market_tax_burned INTEGER NOT NULL CHECK (market_tax_burned >= 0),
     seller_net_payout INTEGER NOT NULL CHECK (seller_net_payout >= 0),
     settlement_type TEXT NOT NULL CHECK (settlement_type IN ('INSTANT_BUYOUT', 'AUCTION_WON')),
-    executed_at TEXT NOT NULL DEFAULT (datetime('now')),
+    executed_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
     CHECK (gross_price = market_tax_burned + seller_net_payout),
     CHECK (seller_id <> buyer_id)
 );
@@ -184,6 +185,20 @@ CREATE TABLE price_history_ohlc (
     volume_traded INTEGER NOT NULL
 );
 
+-- 13. DOUBLE-ENTRY GENERAL LEDGER JOURNAL
+-- Enforces mathematical invariance: Sum(amount) == 0 per tx_group_id
+CREATE TABLE ledger_journal (
+    entry_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tx_group_id TEXT NOT NULL,
+    event_type TEXT NOT NULL CHECK (event_type IN ('BUYOUT', 'ESCROW_LOCK', 'ESCROW_REFUND', 'FORGE_FEE', 'KIOSK_BID', 'KIOSK_WIN_FEE', 'KIOSK_REFUND', 'SEIZURE')),
+    account_type TEXT NOT NULL CHECK (account_type IN ('PLAYER_LIQUID', 'PLAYER_ESCROW', 'GUILD_TREASURY', 'SYSTEM_SINK')),
+    account_id TEXT NOT NULL,
+    amount INTEGER NOT NULL,
+    balance_after INTEGER,
+    description TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
+);
+
 -- ============================================================================
 -- PERFORMANCE INDEXES (Partial, Covering & Composite)
 -- ============================================================================
@@ -192,3 +207,5 @@ CREATE UNIQUE INDEX idx_unique_active_instance ON auction_listings (instance_id)
 CREATE INDEX idx_inventory_owner ON inventory_items (owner_id, is_escrowed);
 CREATE INDEX idx_ledger_executed_at ON ledger_transactions (executed_at DESC);
 CREATE INDEX idx_ohlc_item_realm_time ON price_history_ohlc (item_id, realm_id, candle_id DESC);
+CREATE INDEX idx_journal_tx_group ON ledger_journal(tx_group_id);
+CREATE INDEX idx_journal_account ON ledger_journal(account_type, account_id);

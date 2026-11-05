@@ -10,7 +10,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from src.config import STATIC_DIR, HOST, PORT
-from src.database import init_database, get_engine_telemetry
+from src.database import init_database, get_engine_telemetry, audit_ledger_integrity
 from src.models import (
     BuyoutRequest,
     BidRequest,

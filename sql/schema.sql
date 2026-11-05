@@ -1,8 +1,9 @@
 -- ============================================================================
--- SCROLLS OF AGORA (v3.0): DECENTRALIZED MMORPG GUILD EXCHANGE & ANTI-DUPE ENGINE
--- PostgreSQL 18 Relational Schema (12 Tables, ISA Subtypes, Kiosk Bids & Indexes)
+-- SCROLLS OF AGORA: RELATIONAL DDL (PostgreSQL 16/17+ Engine)
+-- 13 Normalized Relations (BCNF / 3NF), Foreign Keys & Partial Covering Indexes
 -- ============================================================================
 
+DROP TABLE IF EXISTS ledger_journal CASCADE;
 DROP TABLE IF EXISTS price_history_ohlc CASCADE;
 DROP TABLE IF EXISTS ledger_transactions CASCADE;
 DROP TABLE IF EXISTS auction_bids CASCADE;
@@ -23,7 +24,7 @@ CREATE TABLE trade_guilds (
     guild_id SERIAL PRIMARY KEY,
     guild_name VARCHAR(64) NOT NULL UNIQUE,
     alliance VARCHAR(32) NOT NULL CHECK (alliance IN ('Daggerfall Covenant', 'Aldmeri Dominion', 'Ebonheart Pact', 'Independent Syndicate')),
-    Banner_crest VARCHAR(24) NOT NULL DEFAULT 'gold',
+    banner_crest VARCHAR(24) NOT NULL DEFAULT 'gold',
     treasury_gold BIGINT NOT NULL DEFAULT 0 CHECK (treasury_gold >= 0),
     tax_dividend_earned BIGINT NOT NULL DEFAULT 0 CHECK (tax_dividend_earned >= 0)
 );
@@ -38,7 +39,7 @@ CREATE TABLE realms (
     map_y INT NOT NULL CHECK (map_y BETWEEN 0 AND 100),
     controlling_guild_id INT REFERENCES trade_guilds(guild_id) ON DELETE SET NULL,
     population_cap INT NOT NULL DEFAULT 10000 CHECK (population_cap > 0),
-    tax_rate_bps INT NOT NULL DEFAULT 500 CHECK (tax_rate_bps BETWEEN 0 AND 2500) -- e.g. 500 bps = 5.00% Kiosk Cut
+    tax_rate_bps INT NOT NULL DEFAULT 500 CHECK (tax_rate_bps BETWEEN 0 AND 2500)
 );
 
 -- 3. WEEKLY BLIND KIOSK BIDS (Sealed Guild Bids for The Weekly Flip)
@@ -156,7 +157,7 @@ CREATE TABLE auction_bids (
     placed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- 11. IMMUTABLE LEDGER TRANSACTIONS (Double-Entry Settlement & Tax Burn Audit)
+-- 11. IMMUTABLE LEDGER TRANSACTIONS (High-Level Settlement Receipts)
 CREATE TABLE ledger_transactions (
     tx_id SERIAL PRIMARY KEY,
     listing_id INT NOT NULL UNIQUE REFERENCES auction_listings(listing_id) ON DELETE RESTRICT,
@@ -185,10 +186,23 @@ CREATE TABLE price_history_ohlc (
     volume_traded INT NOT NULL CHECK (volume_traded > 0)
 );
 
+-- 13. DOUBLE-ENTRY GENERAL LEDGER JOURNAL
+-- Enforces mathematical invariance: Sum(amount) == 0 per tx_group_id
+CREATE TABLE ledger_journal (
+    entry_id BIGSERIAL PRIMARY KEY,
+    tx_group_id VARCHAR(64) NOT NULL,
+    event_type VARCHAR(32) NOT NULL CHECK (event_type IN ('BUYOUT', 'ESCROW_LOCK', 'ESCROW_REFUND', 'FORGE_FEE', 'KIOSK_BID', 'KIOSK_WIN_FEE', 'KIOSK_REFUND', 'SEIZURE')),
+    account_type VARCHAR(32) NOT NULL CHECK (account_type IN ('PLAYER_LIQUID', 'PLAYER_ESCROW', 'GUILD_TREASURY', 'SYSTEM_SINK')),
+    account_id VARCHAR(64) NOT NULL,
+    amount BIGINT NOT NULL,
+    balance_after BIGINT,
+    description TEXT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 -- ============================================================================
 -- PERFORMANCE INDEXES (B-Tree, Partial, and Composite Covering Indexes)
 -- ============================================================================
-
 CREATE INDEX idx_active_listings_realm_price 
     ON auction_listings (realm_id, buyout_price ASC) 
     WHERE status = 'ACTIVE';
@@ -202,3 +216,5 @@ CREATE INDEX idx_ohlc_item_realm_time
 
 CREATE INDEX idx_inventory_owner ON inventory_items (owner_id, is_escrowed);
 CREATE INDEX idx_ledger_executed_at ON ledger_transactions (executed_at DESC);
+CREATE INDEX idx_journal_tx_group ON ledger_journal(tx_group_id);
+CREATE INDEX idx_journal_account ON ledger_journal(account_type, account_id);

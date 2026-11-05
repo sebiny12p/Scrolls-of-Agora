@@ -1,7 +1,7 @@
 # Scrolls of Agora
 
-**High-Throughput Partitioned Virtual Market Engine, Concurrency Control & Auditing in PostgreSQL / SQLite**  
-*Academic Project for Relational Database Systems (IST DB1) & Systems Engineering Portfolios.*  
+**High-Throughput Partitioned Virtual Market Engine, Concurrency Control & Double-Entry Auditing in PostgreSQL / SQLite**  
+*Systems Engineering Portfolio & Relational Database Systems Project.*  
 *Developer:* [Sebastian Paris (@sebiny12p)](https://github.com/sebiny12p)
 
 ---
@@ -10,14 +10,15 @@
 
 **Scrolls of Agora** is a relational transaction engine, multi-hub partitioned orderbook, and double-entry financial ledger modeled after the regional guild-trader economies of *The Elder Scrolls Online* and *World of Warcraft*.
 
-Rather than a surface-level CRUD interface, this project addresses the core database systems challenges in transactional virtual economies:
+Rather than a surface-level CRUD interface, this project addresses core database systems challenges in transactional virtual economies:
 
-1. **Pessimistic Concurrency Control (`SELECT ... FOR UPDATE` & 2PL):** Eliminates race-condition item duplication ("duping") and phantom double-spending across 100 simultaneous concurrent buyer connections using row-level tuple locks.
-2. **Deadlock-Free Two-Phase Locking:** Enforces deterministic ascending primary key lock hierarchies (`ORDER BY player_id ASC FOR UPDATE`) to mathematically eliminate Coffman's circular wait condition (guaranteeing zero AB-BA deadlocks during multi-player transfers).
+1. **Pessimistic Concurrency Control (`SELECT ... FOR UPDATE` & 2PL):** Eliminates race-condition item duplication ("duping") and double-spending across 100 simultaneous concurrent buyer connections using row-level tuple locks.
+2. **Deadlock-Free Two-Phase Locking:** Enforces deterministic ascending primary key lock hierarchies (`ORDER BY player_id ASC FOR UPDATE`) across both PL/pgSQL stored procedures and Python repositories to eliminate Coffman's circular wait condition.
 3. **Partitioned Regional Orderbooks:** Models 5 independent trading hubs (**Wayrest**, **Elden Root**, **Mournhold**, **Imperial City**, **Rawl'kha**) with localized tax rates, sealed-bid kiosk lease auctions, and cross-city floor-price arbitrage scanners.
-4. **Formal Relational Normalization:** 12 tables decomposed into **Boyce-Codd Normal Form (BCNF)** and **Third Normal Form (3NF)** with ISA subtype specialization (`item_templates` $\to$ `equipment_specs` / `consumable_specs`), partial B-Tree covering indexes, and double-entry accounting balance constraints.
-5. **Graph Query Traversal (`WITH RECURSIVE`):** Multi-hop cycle and wash-trade detection tracing illicit currency flows through Real-Money Trading (RMT) mule chains, coupled with dynamic account auditing.
-6. **Dual-Engine Relational Abstraction:** Native support for both **PostgreSQL** (Docker Compose connection pool with PL/pgSQL procedures) and zero-config **SQLite 3** (Write-Ahead Logging with immediate 2PL serialization).
+4. **True Double-Entry General Ledger:** Implements balanced journal entries (`ledger_journal`) across `PLAYER_LIQUID`, `PLAYER_ESCROW`, `GUILD_TREASURY`, and `SYSTEM_SINK` accounts, enforcing the strict mathematical invariance $\sum \text{amount} = 0$ across all transaction groups (buyouts, escrow locks, outbid refunds, forge fees, and kiosk leases).
+5. **Cycle-Safe Recursive CTE Graph Traversal (`WITH RECURSIVE`):** Multi-hop cycle and wash-trade detection tracing illicit currency flows through Real-Money Trading (RMT) mule chains, guarded against infinite recursion via SQL-level path-traversal tracking.
+6. **Formal Relational Normalization:** 13 tables decomposed into **Boyce-Codd Normal Form (BCNF)** and **Third Normal Form (3NF)** with ISA subtype specialization (`item_templates` $\to$ `equipment_specs` / `consumable_specs`) and partial B-Tree covering indexes.
+7. **Dual-Engine Relational Abstraction:** Native support for both **PostgreSQL** (Docker Compose connection pool with PL/pgSQL procedures) and zero-config **SQLite 3** (Write-Ahead Logging with immediate 2PL serialization).
 
 ---
 
@@ -34,7 +35,7 @@ In-depth database design, relational algebra proofs, and concurrency analyses ar
 
 ---
 
-## 3. Entity-Relationship (ER) Architecture (12 Relations)
+## 3. Entity-Relationship (ER) Architecture (13 Relations)
 
 ```mermaid
 erDiagram
@@ -60,6 +61,7 @@ erDiagram
     INVENTORY_ITEMS ||--o| AUCTION_LISTINGS : "escrowed_in"
     AUCTION_LISTINGS ||--o{ AUCTION_BIDS : "receives"
     AUCTION_LISTINGS ||--o| LEDGER_TRANSACTIONS : "settles_in"
+    LEDGER_JOURNAL }o--|| PLAYERS : "balances_wallets"
 ```
 
 ---
@@ -85,15 +87,15 @@ The engine provides 7 operational and analytical queries with formal relational 
 ```text
 Scrolls-of-Agora/
 ├── src/
-│   ├── config.py                 # Typed configuration & environment loading
-│   ├── database.py               # Dual-engine adapter (PostgreSQL connection pool + SQLite WAL)
+│   ├── config.py                 # Typed configuration, domain constants & environment loading
+│   ├── database.py               # Multi-engine adapter (PostgreSQL pool + SQLite WAL) & double-entry journal
 │   ├── models.py                 # Pydantic schemas (typed request/response validation)
 │   ├── repositories/             # Data Access Objects (parameterized SQL)
 │   │   ├── market_repo.py        # Orderbook, inventory bag & 24h candlestick queries
-│   │   ├── transaction_repo.py   # Atomic buyout, escrow bidding, forging & kiosk flip
-│   │   └── analytics_repo.py     # 7 Relational queries, query plans & recursive CTE
+│   │   ├── transaction_repo.py   # Atomic buyout, escrow bidding, forging, kiosk flip & balanced journal
+│   │   └── analytics_repo.py     # 7 Relational queries, query plans & cycle-safe recursive CTE
 │   ├── services/
-│   │   └── dupe_bench_service.py # Real multi-threaded database concurrency benchmark
+│   │   └── dupe_bench_service.py # Multi-threaded database concurrency benchmark (Pessimistic vs Unsafe)
 │   └── routers/                  # Modular FastAPI APIRouters
 │       ├── market.py
 │       ├── transactions.py
@@ -107,6 +109,12 @@ Scrolls-of-Agora/
 │   ├── queries.sql               # Relational algebra query suite
 │   ├── transactions.sql          # PL/pgSQL stored procedures (FOR UPDATE)
 │   └── explain_plans.sql         # EXPLAIN (ANALYZE, BUFFERS) query plans
+├── tests/                        # Comprehensive Pytest Suite
+│   ├── conftest.py               # Test isolation fixtures
+│   ├── test_database.py          # Adapter, dialect adaptation & telemetry tests
+│   ├── test_transactions.py      # Buyouts, escrow, forging, kiosk flips & journal invariance
+│   ├── test_analytics.py         # Relational queries & cycle-safe CTE
+│   └── test_concurrency.py       # Multi-threaded concurrency benchmarks
 ├── scripts/
 │   └── seed_scale.py             # 10,000+ tuple dataset generator & index evaluator
 ├── static/
@@ -118,7 +126,7 @@ Scrolls-of-Agora/
 │   ├── CONCURRENCY.md            # 2PL, MVCC, lock ordering & deadlock elimination
 │   └── BENCHMARKS.md             # Concurrency test results & query plan analysis
 ├── app.py                         # Clean FastAPI application entry point
-├── test_engine.py                 # 13-point automated verification & concurrency suite
+├── test_engine.py                 # 14-point systems verification & concurrency suite
 └── compose.yml                    # Docker Compose stack (PostgreSQL 17-alpine + pgAdmin 4)
 ```
 
@@ -128,7 +136,7 @@ Scrolls-of-Agora/
 
 ### 1. Launch the Server (Zero-Config SQLite WAL)
 ```bash
-pip install fastapi uvicorn pydantic "psycopg[binary,pool]"
+pip install fastapi uvicorn pydantic "psycopg[binary,pool]" pytest
 python app.py
 ```
 Open **[http://127.0.0.1:8090](http://127.0.0.1:8090)** in your browser:
@@ -137,8 +145,16 @@ Open **[http://127.0.0.1:8090](http://127.0.0.1:8090)** in your browser:
 * **Weekly Kiosk Flip**: Resolve sealed blind bids across all 5 hubs and refund losing guild treasuries atomically.
 * **100-Thread Anti-Dupe Lab**: Benchmark real `SELECT ... FOR UPDATE` serialization against unprotected concurrent reads.
 * **Relational Query & Plan Inspector**: Inspect mathematical Relational Algebra notations alongside real `EXPLAIN QUERY PLAN` optimizer trees.
+* **Double-Entry General Ledger**: Verify zero-imbalance balance sheets across the entire economy.
 
-### 2. Run the Automated Verification Suite
+### 2. Run the Automated Test Suites
+
+**Run the Pytest Suite (19 tests):**
+```bash
+pytest tests/ -v
+```
+
+**Run the 14-Point Systems Verification Runner:**
 ```bash
 python test_engine.py
 ```
@@ -147,10 +163,11 @@ Validates:
 * Atomic escrow bids and outbid automatic refunds
 * Multi-table Arcane Forge crafting transaction
 * Sealed guild kiosk bidding and weekly flip resolution
-* Recursive CTE RMT money-laundering detection and dynamic account auditing
-* Real multi-threaded unprotected race benchmark (detects phantom purchases on concurrent connections)
+* Recursive CTE RMT money-laundering detection with cycle safety and dynamic account auditing
+* Multi-threaded unprotected race benchmark (detects concurrent stale-read race window and write collisions)
 * 100-thread pessimistic locking stress test (guarantees exactly 1 winner, 0 dupes)
 * All 7 relational algebra analytical queries
+* Double-entry general ledger mathematical invariance ($\sum \text{amount} = 0$ across all transaction groups)
 
 ### 3. Generate Large-Scale Data & Benchmark Partial Indexes (10,000+ Rows)
 ```bash

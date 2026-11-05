@@ -1,7 +1,7 @@
 """
 Analytics API Router for Scrolls of Agora.
 Exposes the 7 Relational Algebra query suites, query plan telemetry,
-and recursive CTE RMT money-laundering tracking.
+recursive CTE RMT money-laundering tracking, and double-entry ledger audits.
 """
 
 from fastapi import APIRouter, HTTPException
@@ -10,6 +10,7 @@ from src.repositories.analytics_repo import (
     get_rmt_laundering_graph,
     ban_and_seize_rmt_mule_ring,
     ANALYTICAL_CATALOG,
+    audit_ledger_integrity,
 )
 
 router = APIRouter(tags=["Relational Algebra & Analytics"])
@@ -30,3 +31,8 @@ def api_rmt_graph():
 @router.post("/api/ban-rmt-ring")
 def api_ban_rmt_ring():
     return ban_and_seize_rmt_mule_ring()
+
+
+@router.get("/api/ledger/audit")
+def api_ledger_audit():
+    return audit_ledger_integrity()
