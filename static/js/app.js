@@ -293,7 +293,11 @@ async function loadState() {
   document.getElementById('mTaxBurn').textContent = k.total_tax_burned.toLocaleString() + 'g';
   document.getElementById('mEscrow').textContent = k.total_escrow_locked.toLocaleString() + 'g';
   document.getElementById('mSerials').textContent = k.items_duplicated > 0 ? `${k.items_duplicated} Duplicates` : 'Verified 1:1';
-  document.getElementById('engineBadge').textContent = 'SQLite · Row-Level Locks';
+  const engName = (marketState.kpis && marketState.kpis.backend_engine === 'POSTGRESQL') ? 'PostgreSQL 17' : 'SQLite WAL (2PL)';
+  const mEng = document.getElementById('mEngine');
+  if (mEng) mEng.textContent = engName;
+  const eb = document.getElementById('engineBadge');
+  if (eb) eb.textContent = engName;
 
   // Mail Counters
   const unreadMail = (marketState.kpis && marketState.kpis.uncollected_mail) || 0;

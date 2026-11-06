@@ -24,8 +24,6 @@
         <div class="brand-title">SCROLLS OF AGORA</div>
         <div class="brand-sub">Regional Guild Exchange &amp; Financial Ledger</div>
       </div>
-      <span class="status-tag" id="engineBadge">INITIALIZING...</span>
-      <span class="auth-pill" id="authBadge" onclick="toggleAuthModal()" title="View Active HMAC-SHA256 Cryptographic Session Token">🔒 HMAC: AUTHENTICATED</span>
     </div>
 
     <div class="telemetry-strip">
@@ -48,6 +46,10 @@
       <div class="metric-cell">
         <span class="metric-label">Ledger Integrity</span>
         <span class="metric-val emerald" id="mSerials">VERIFIED</span>
+      </div>
+      <div class="metric-cell">
+        <span class="metric-label">Engine</span>
+        <span class="metric-val" id="mEngine" style="font-size:11px; color:var(--text-secondary);">SQLite WAL</span>
       </div>
     </div>
 
@@ -154,9 +156,12 @@
     <div class="right-zone">
 
       <!-- ACTIVE CHARACTER & WALLET -->
-      <div class="pane-header">
+      <div class="pane-header" style="display:flex; justify-content:space-between; align-items:center;">
         <div class="pane-title">Active Trader Account</div>
-        <span style="font-family:var(--font-mono); font-size:9.5px; color:var(--emerald);">SECURE ESCROW ACTIVE</span>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span class="auth-pill" id="authBadge" onclick="toggleAuthModal()" title="View Active HMAC-SHA256 Cryptographic Session Token">🔒 HMAC: AUTHENTICATED</span>
+          <span style="font-family:var(--font-mono); font-size:9.5px; color:var(--emerald);">ESCROW ACTIVE</span>
+        </div>
       </div>
 
       <div class="char-box">
@@ -245,10 +250,10 @@
       <div class="sub-tabs">
         <button class="sub-tab active" onclick="switchRightTab('kiosk', this)">Kiosk Leases</button>
         <button class="sub-tab" id="subtab-mail" onclick="switchRightTab('mail', this)">Courier Mail <span id="tabMailCount" style="color:var(--cyan); font-weight:700;">(0)</span></button>
-        <button class="sub-tab" onclick="switchRightTab('p2p', this)">P2P Direct Trade</button>
-        <button class="sub-tab" onclick="switchRightTab('dupe', this)">Concurrency Lab</button>
+        <button class="sub-tab" onclick="switchRightTab('p2p', this)">P2P Trade</button>
+        <button class="sub-tab" onclick="switchRightTab('dupe', this)">Anti-Dupe Lab</button>
         <button class="sub-tab" onclick="switchRightTab('rmt', this)">Fraud Trace</button>
-        <button class="sub-tab" onclick="switchRightTab('sql', this)">SQL Analytics</button>
+        <button class="sub-tab" onclick="switchRightTab('sql', this)">SQL Queries</button>
       </div>
 
       <!-- RIGHT BOTTOM CONTENT -->
