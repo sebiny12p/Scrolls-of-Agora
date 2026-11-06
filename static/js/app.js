@@ -1077,9 +1077,30 @@ async function submitLimitOrder() {
 // =========================================================================
 // IN-GAME COURIER MAILBOX
 // =========================================================================
+let mailboxMode = 'inbox'; // 'inbox' or 'sent'
+
 function openMailboxTab() {
   const tabBtn = document.getElementById('subtab-mail');
   switchRightTab('mail', tabBtn);
+}
+
+function setMailboxMode(mode) {
+  mailboxMode = mode;
+  const btnIn = document.getElementById('btnMailInbox');
+  const btnSn = document.getElementById('btnMailSent');
+  const hint = document.getElementById('mailboxModeHint');
+  if (btnIn && btnSn) {
+    if (mode === 'inbox') {
+      btnIn.classList.add('active');
+      btnSn.classList.remove('active');
+      if (hint) hint.textContent = 'Incoming courier deliveries';
+    } else {
+      btnIn.classList.remove('active');
+      btnSn.classList.add('active');
+      if (hint) hint.textContent = 'Parcels dispatched to other traders';
+    }
+  }
+  loadMailbox();
 }
 
 function toggleMailCompose() {
@@ -1107,53 +1128,110 @@ async function loadMailbox() {
   const container = document.getElementById('mailboxListContainer');
   if (!container) return;
 
-  const res = await fetchWithAuth(`/api/mail?player_id=${activePlayerId}`);
-  const data = await res.json();
-  const mailItems = data.mailbox || [];
+  // 1. Fetch inbox
+  const resIn = await fetchWithAuth(`/api/mail?player_id=${activePlayerId}`);
+  const dataIn = await resIn.json();
+  const inbox = dataIn.mailbox || [];
 
-  if (mailItems.length === 0) {
-    container.innerHTML = '<div style="color:var(--text-dim); padding:16px; text-align:center; font-size:10.5px; border:1px dashed var(--border-dim);">Your mailbox is empty. Courier parcels and auction returns will arrive here.</div>';
-    return;
+  // 2. Fetch sent
+  const resSn = await fetchWithAuth(`/api/mail/sent?player_id=${activePlayerId}`);
+  const dataSn = await resSn.json();
+  const sent = dataSn.sent_mail || [];
+
+  const inEl = document.getElementById('inboxCount');
+  if (inEl) inEl.textContent = inbox.length;
+  const snEl = document.getElementById('sentCount');
+  if (snEl) snEl.textContent = sent.length;
+
+  if (mailboxMode === 'inbox') {
+    if (inbox.length === 0) {
+      container.innerHTML = '<div style="color:var(--text-dim); padding:16px; text-align:center; font-size:10.5px; border:1px dashed var(--border-dim);">Your inbox is empty. Parcels sent by other players and auction returns will arrive here.</div>';
+      return;
+    }
+
+    container.innerHTML = inbox.map(m => {
+      const isUnclaimed = !m.is_collected;
+      const hasItem = !!m.attached_instance_id;
+      const hasGold = m.attached_gold > 0;
+      const hasCod = m.cod_amount > 0;
+
+      let attachPill = '';
+      if (hasGold) attachPill += `<span style="color:var(--brass-bright); font-weight:700;">+${m.attached_gold.toLocaleString()}g</span> `;
+      if (hasItem) attachPill += `<span class="text-${m.rarity || 'Common'}" style="font-weight:600;">[${m.item_name || 'Item'} (${m.mint_serial || ''})]</span> `;
+      if (hasCod) attachPill += `<span style="color:var(--cyan);">(COD Fee: ${m.cod_amount.toLocaleString()}g)</span>`;
+
+      return `
+        <div class="mail-parcel-card ${isUnclaimed ? 'uncollected' : ''}">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <div style="font-weight:700; font-size:11px; color:${isUnclaimed ? 'var(--brass-bright)' : 'var(--text-secondary)'};">
+              ${m.subject}
+            </div>
+            <span style="font-family:var(--font-mono); font-size:9px; color:var(--text-dim);">${m.sent_at.slice(0, 16)}</span>
+          </div>
+          <div style="font-size:9.5px; color:var(--text-dim); margin-bottom:5px;">
+            From: <strong style="color:var(--text-primary);">${m.sender_name.replace(/_/g, ' ')}</strong>
+          </div>
+          <div style="font-size:10px; color:var(--text-secondary); line-height:1.35; margin-bottom:6px; background:var(--bg-slot); padding:5px 7px; border:1px solid var(--border-dim);">
+            ${m.body || 'No attached message.'}
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; font-family:var(--font-mono); font-size:9.5px;">
+            <div>${attachPill || '<span style="color:var(--text-dim);">No attachments</span>'}</div>
+            <div>
+              ${isUnclaimed ? `
+                <button class="btn btn-brass" style="height:23px; padding:0 10px; font-size:9px;" onclick="claimMailParcel(${m.mail_id})">
+                  Claim Parcel
+                </button>
+              ` : '<span style="color:var(--emerald); font-size:9px; font-weight:700;">COLLECTED</span>'}
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  } else {
+    // Render Sent Parcels
+    if (sent.length === 0) {
+      container.innerHTML = '<div style="color:var(--text-dim); padding:16px; text-align:center; font-size:10.5px; border:1px dashed var(--border-dim);">No dispatched parcels recorded. Use Compose Mail above to send a parcel.</div>';
+      return;
+    }
+
+    container.innerHTML = sent.map(m => {
+      const isUnclaimed = !m.is_collected;
+      const hasItem = !!m.attached_instance_id;
+      const hasGold = m.attached_gold > 0;
+      const hasCod = m.cod_amount > 0;
+
+      let attachPill = '';
+      if (hasGold) attachPill += `<span style="color:var(--brass-bright); font-weight:700;">+${m.attached_gold.toLocaleString()}g</span> `;
+      if (hasItem) attachPill += `<span class="text-${m.rarity || 'Common'}" style="font-weight:600;">[${m.item_name || 'Item'}]</span> `;
+      if (hasCod) attachPill += `<span style="color:var(--cyan);">(COD: ${m.cod_amount.toLocaleString()}g)</span>`;
+
+      return `
+        <div class="mail-parcel-card" style="border-left:2px solid var(--cyan);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <div style="font-weight:700; font-size:11px; color:var(--text-primary);">
+              ${m.subject}
+            </div>
+            <span style="font-family:var(--font-mono); font-size:9px; color:var(--text-dim);">${m.sent_at.slice(0, 16)}</span>
+          </div>
+          <div style="font-size:9.5px; color:var(--text-dim); margin-bottom:5px; display:flex; justify-content:space-between; align-items:center;">
+            <span>Sent To: <strong style="color:var(--cyan);">${(m.recipient_name || 'Recipient').replace(/_/g, ' ')}</strong></span>
+            <button class="btn btn-xs" style="padding:2px 7px; font-size:9px; border-color:var(--cyan); color:var(--cyan);" onclick="switchToRecipient(${m.recipient_id})">Switch to ${(m.recipient_name || 'Recipient').replace(/_/g, ' ')}</button>
+          </div>
+          <div style="font-size:10px; color:var(--text-secondary); line-height:1.35; margin-bottom:6px; background:var(--bg-slot); padding:5px 7px; border:1px solid var(--border-dim);">
+            ${m.body || 'No attached message.'}
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; font-family:var(--font-mono); font-size:9.5px;">
+            <div>${attachPill || '<span style="color:var(--text-dim);">Letter only</span>'}</div>
+            <div>
+              ${isUnclaimed
+                ? '<span style="color:var(--brass-bright); font-size:9px; font-weight:600;">IN TRANSIT / AWAITING CLAIM</span>'
+                : '<span style="color:var(--emerald); font-size:9px; font-weight:700;">CLAIMED BY RECIPIENT</span>'}
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
   }
-
-  container.innerHTML = mailItems.map(m => {
-    const isUnclaimed = !m.is_collected;
-    const hasItem = !!m.attached_instance_id;
-    const hasGold = m.attached_gold > 0;
-    const hasCod = m.cod_amount > 0;
-
-    let attachPill = '';
-    if (hasGold) attachPill += `<span style="color:var(--brass-bright); font-weight:700;">+${m.attached_gold.toLocaleString()}g</span> `;
-    if (hasItem) attachPill += `<span class="text-${m.rarity || 'Common'}" style="font-weight:600;">[${m.item_name || 'Item'} (${m.mint_serial || ''})]</span> `;
-    if (hasCod) attachPill += `<span style="color:var(--cyan);">(COD: ${m.cod_amount.toLocaleString()}g)</span>`;
-
-    return `
-      <div class="mail-parcel-card ${isUnclaimed ? 'uncollected' : ''}">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-          <div style="font-weight:700; font-size:11px; color:${isUnclaimed ? 'var(--brass-bright)' : 'var(--text-secondary)'};">
-            ${m.subject}
-          </div>
-          <span style="font-family:var(--font-mono); font-size:9px; color:var(--text-dim);">${m.sent_at.slice(0, 16)}</span>
-        </div>
-        <div style="font-size:9.5px; color:var(--text-dim); margin-bottom:5px;">
-          From: <strong style="color:var(--text-primary);">${m.sender_name.replace(/_/g, ' ')}</strong>
-        </div>
-        <div style="font-size:10px; color:var(--text-secondary); line-height:1.35; margin-bottom:6px; background:var(--bg-slot); padding:5px 7px; border:1px solid var(--border-dim);">
-          ${m.body || 'No attached message.'}
-        </div>
-        <div style="display:flex; justify-content:space-between; align-items:center; font-family:var(--font-mono); font-size:9.5px;">
-          <div>${attachPill || '<span style="color:var(--text-dim);">No attachments</span>'}</div>
-          <div>
-            ${isUnclaimed ? `
-              <button class="btn btn-brass" style="height:23px; padding:0 10px; font-size:9px;" onclick="claimMailParcel(${m.mail_id})">
-                Claim Parcel
-              </button>
-            ` : '<span style="color:var(--emerald); font-size:9px; font-weight:700;">COLLECTED</span>'}
-          </div>
-        </div>
-      </div>
-    `;
-  }).join('');
 }
 
 async function claimMailParcel(mailId) {
@@ -1173,12 +1251,19 @@ async function claimMailParcel(mailId) {
 }
 
 async function submitSendMail() {
-  const recId = parseInt(document.getElementById('mailRecipientSelect').value, 10);
-  const subj = document.getElementById('mailSubjectInput').value.trim();
-  const body = document.getElementById('mailBodyInput').value.trim();
-  const gold = parseInt(document.getElementById('mailAttachGoldInput').value, 10) || 0;
-  const cod = parseInt(document.getElementById('mailCodInput').value, 10) || 0;
-  const itmVal = document.getElementById('mailAttachItemSelect').value;
+  const recSel = document.getElementById('mailRecipientSelect');
+  const recId = parseInt(recSel.value, 10);
+  const recText = recSel.options[recSel.selectedIndex]?.text.split('(')[0].trim() || 'Recipient';
+  const subjInput = document.getElementById('mailSubjectInput');
+  const subj = subjInput.value.trim();
+  const bodyInput = document.getElementById('mailBodyInput');
+  const body = bodyInput.value.trim();
+  const goldInput = document.getElementById('mailAttachGoldInput');
+  const gold = parseInt(goldInput.value, 10) || 0;
+  const codInput = document.getElementById('mailCodInput');
+  const cod = parseInt(codInput.value, 10) || 0;
+  const itmSel = document.getElementById('mailAttachItemSelect');
+  const itmVal = itmSel.value;
   const itmId = itmVal ? parseInt(itmVal, 10) : null;
 
   if (!subj) {
@@ -1203,10 +1288,36 @@ async function submitSendMail() {
   if (!res.ok || !data.success) {
     notify(data.detail || data.message || 'Failed to dispatch mail', true);
   } else {
-    notify(data.message);
-    toggleMailCompose();
+    // Clear form inputs
+    subjInput.value = '';
+    bodyInput.value = '';
+    goldInput.value = '0';
+    codInput.value = '0';
+    itmSel.value = '';
+
+    // Close compose box
+    const box = document.getElementById('mailComposeBox');
+    if (box) box.style.display = 'none';
+
+    // Show banner inside mail panel
+    const banner = document.getElementById('mailNoticeBanner');
+    if (banner) {
+      banner.style.display = 'block';
+      banner.innerHTML = `<strong>Parcel Dispatched!</strong> Delivered to <strong>${recText}</strong>. Switch to <strong>${recText}</strong> in the trader dropdown to view and claim it.`;
+      setTimeout(() => { if (banner) banner.style.display = 'none'; }, 8000);
+    }
+
+    notify(`Parcel dispatched to ${recText}! Switch character to ${recText} to claim it.`);
+    setMailboxMode('sent');
     loadState();
-    loadMailbox();
+  }
+}
+
+function switchToRecipient(pid) {
+  const sel = document.getElementById('traderSelect');
+  if (sel) {
+    sel.value = pid;
+    sel.dispatchEvent(new Event('change'));
   }
 }
 

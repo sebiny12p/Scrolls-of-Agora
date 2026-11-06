@@ -58,6 +58,33 @@ def get_player_mailbox(player_id: int) -> List[Dict[str, Any]]:
         return rows_to_dicts(cur.fetchall())
 
 
+def get_player_sent_mail(player_id: int) -> List[Dict[str, Any]]:
+    """Retrieves all parcels dispatched by a given player."""
+    with get_db_cursor() as cur:
+        execute_sql(cur, "SELECT username FROM players WHERE player_id = ?;", (player_id,))
+        p_row = cur.fetchone()
+        if not p_row:
+            return []
+        uname = p_row["username"] if hasattr(p_row, "keys") else p_row[0]
+        execute_sql(
+            cur,
+            """
+            SELECT
+                pm.*, p.username AS recipient_name,
+                ii.mint_serial, ii.temper_tier, ii.bonus_power,
+                it.item_id, it.item_name, it.icon_key, it.rarity
+            FROM player_mail pm
+            JOIN players p ON p.player_id = pm.recipient_id
+            LEFT JOIN inventory_items ii ON ii.instance_id = pm.attached_instance_id
+            LEFT JOIN item_templates it ON it.item_id = ii.item_id
+            WHERE pm.sender_name = ?
+            ORDER BY pm.mail_id DESC;
+            """,
+            (uname,),
+        )
+        return rows_to_dicts(cur.fetchall())
+
+
 def send_player_mail(
     sender_id: int,
     recipient_id: int,

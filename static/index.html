@@ -303,12 +303,28 @@
                 Tamriel Courier Service
               </div>
               <div style="font-size:9.5px; color:var(--text-secondary); margin-top:2px;">
-                Asynchronous parcel delivery, COD settlements & inventory overflow.
+                Asynchronous parcel delivery, COD settlements &amp; inventory overflow.
               </div>
             </div>
             <button class="btn btn-brass" style="padding:4px 10px; font-size:9.5px;" onclick="toggleMailCompose()">
               Compose Mail
             </button>
+          </div>
+
+          <!-- Notification Banner for Dispatched Mail -->
+          <div id="mailNoticeBanner" style="display:none; background:rgba(16,185,129,0.12); border:1px solid rgba(16,185,129,0.4); color:#6ee7b7; font-family:var(--font-mono); font-size:10px; padding:7px 10px; margin-bottom:8px; line-height:1.4;"></div>
+
+          <!-- Inbox vs Sent Mail Toggle -->
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <div class="ob-toggle-group">
+              <button class="ob-toggle-btn active" id="btnMailInbox" onclick="setMailboxMode('inbox')">
+                Inbox (<span id="inboxCount">0</span>)
+              </button>
+              <button class="ob-toggle-btn" id="btnMailSent" onclick="setMailboxMode('sent')">
+                Sent Parcels (<span id="sentCount">0</span>)
+              </button>
+            </div>
+            <span style="font-family:var(--font-mono); font-size:9px; color:var(--text-dim);" id="mailboxModeHint">Incoming courier deliveries</span>
           </div>
 
           <!-- Compose Mail Drawer -->

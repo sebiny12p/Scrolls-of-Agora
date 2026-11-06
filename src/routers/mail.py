@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, Query, Header
 from src.models import MailSendRequest, MailClaimRequest
 from src.repositories.mail_repo import (
     get_player_mailbox,
+    get_player_sent_mail,
     send_player_mail,
     claim_mail_attachment,
 )
@@ -29,6 +30,21 @@ def api_get_mailbox(
         "mail_count": len(mail_items),
         "uncollected_count": sum(1 for m in mail_items if not m["is_collected"]),
         "mailbox": mail_items,
+    }
+
+
+@router.get("/sent")
+def api_get_sent_mail(
+    player_id: Optional[int] = Query(None, description="Player ID to view sent mailbox"),
+    auth_pid: Optional[int] = Depends(get_current_player_id),
+):
+    pid = resolve_effective_player_id(player_id or 1005, auth_pid)
+    sent_items = get_player_sent_mail(pid)
+    return {
+        "success": True,
+        "player_id": pid,
+        "sent_count": len(sent_items),
+        "sent_mail": sent_items,
     }
 
 
