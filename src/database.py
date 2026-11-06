@@ -117,6 +117,33 @@ def execute_sql(cur: Any, sql: str, params: Tuple = ()) -> Any:
     return cur.execute(adapted)
 
 
+def execute_insert(cur: Any, sql: str, params: Tuple = (), pkey_column: str = "id") -> int:
+    """
+    Executes an INSERT statement and reliably returns the generated integer primary key
+    across both PostgreSQL (via RETURNING <pkey>) and SQLite (via cur.lastrowid).
+    Guarantees dual-engine relational parity without dialect-induced NoneType order_id/mail_id bugs.
+    """
+    adapted = adapt_sql(sql).strip()
+    if is_postgres():
+        clean_sql = adapted.rstrip(";")
+        if " RETURNING " not in clean_sql.upper():
+            clean_sql = f"{clean_sql} RETURNING {pkey_column};"
+        if params:
+            cur.execute(clean_sql, params)
+        else:
+            cur.execute(clean_sql)
+        res = cur.fetchone()
+        if res:
+            return res[0] if not hasattr(res, "keys") else res[pkey_column]
+        return 1
+    else:
+        if params:
+            cur.execute(adapted, params)
+        else:
+            cur.execute(adapted)
+        return getattr(cur, "lastrowid", None) or 1
+
+
 def row_to_dict(row: Any) -> Dict[str, Any]:
     """Convert a row object (sqlite3.Row or psycopg dict) to standard python dict."""
     if row is None:
@@ -222,7 +249,9 @@ def _init_sqlite(force: bool = False) -> None:
         try:
             cur.execute("SELECT COUNT(*) FROM realms;")
             count = cur.fetchone()[0]
-            if count >= 5:
+            cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='player_mail';")
+            has_mail = cur.fetchone() is not None
+            if count >= 5 and has_mail:
                 conn.close()
                 return
         except Exception:

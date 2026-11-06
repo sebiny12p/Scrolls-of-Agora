@@ -25,6 +25,7 @@
         <div class="brand-sub">Regional Guild Exchange &amp; Financial Ledger</div>
       </div>
       <span class="status-tag" id="engineBadge">INITIALIZING...</span>
+      <span class="auth-pill" id="authBadge" onclick="toggleAuthModal()" title="View Active HMAC-SHA256 Cryptographic Session Token">🔒 HMAC: AUTHENTICATED</span>
     </div>
 
     <div class="telemetry-strip">
@@ -51,6 +52,12 @@
     </div>
 
     <div class="top-actions">
+      <button class="btn btn-brass" id="topbarMailBtn" onclick="openMailboxTab()" title="Check In-Game Mailbox and Claim Courier Parcels">
+        📬 Mail (<span id="topbarMailCount">0</span>)
+      </button>
+      <button class="btn" onclick="triggerSweepExpired()" title="Automated Sweeper: Return expired listings to seller mailboxes">
+        Sweep Expired
+      </button>
       <button class="btn btn-brass" onclick="triggerWeeklyKioskFlip()" title="Evaluate sealed bids and award weekly regional trading post charters">
         Weekly Charter Flip
       </button>
@@ -108,15 +115,24 @@
         </div>
       </div>
 
-      <!-- ORDERBOOK HEADER WITH FAST HUB FILTER PILLS -->
-      <div class="pane-header">
-        <div class="pane-title" id="orderbookPaneTitle">Tamriel Exchange Order Book</div>
+      <!-- ORDERBOOK HEADER WITH FAST HUB FILTER PILLS & MODE TOGGLE -->
+      <div class="pane-header" style="display:flex; justify-content:space-between; align-items:center;">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <div class="pane-title" id="orderbookPaneTitle">Tamriel Exchange Order Book</div>
+          <div class="ob-toggle-group">
+            <button class="ob-toggle-btn active" id="btnModeKiosks" onclick="switchOrderbookMode('kiosks')">Decentralized Kiosks</button>
+            <button class="ob-toggle-btn" id="btnModeLimit" onclick="switchOrderbookMode('limit')">Regional Limit Depth</button>
+          </div>
+        </div>
         <div class="hub-pills" id="hubFilterPills"></div>
       </div>
 
-      <!-- ORDERBOOK TABLE -->
+      <!-- ORDERBOOK TABLE / REGIONAL LIMIT DEPTH -->
       <div class="orderbook-wrap">
-        <table class="market-table">
+        <div id="limitDepthContainer" style="display:none; padding:12px; height:100%; overflow-y:auto;">
+          <!-- Dynamically populated Limit Depth & Ladder -->
+        </div>
+        <table class="market-table" id="kioskTable">
           <thead>
             <tr>
               <th style="width:46px;">Order</th>
@@ -162,7 +178,9 @@
       <!-- 20-SLOT PHYSICAL INVENTORY BAG GRID -->
       <div class="bag-section">
         <div style="display:flex; justify-content:space-between; align-items:center;">
-          <div class="pane-title" style="font-size:10px;">Trader Inventory (20 Slots)</div>
+          <div class="pane-title" id="bagSlotsTitle" style="font-size:10px;">Trader Inventory (0/20 Slots)</div>
+          <div style="display:flex; gap:6px; align-items:center;">
+            <button class="btn" id="btnRepairAll" style="height:22px; padding:0 8px; border-color:var(--brass); color:var(--brass-bright); font-size:9px;" onclick="repairAllPlayerGear()">Repair All Gear</button>
           <span style="font-family:var(--font-mono); font-size:9px; color:var(--text-dim);">CLICK ITEM TO LIST OR REFINE</span>
         </div>
 
@@ -204,12 +222,30 @@
               Refine (3,500g)
             </button>
           </div>
+
+          <!-- Section 3: Equipment Durability & Blacksmith Station -->
+          <div id="durabilityRow" style="padding-top:6px; border-top:1px solid var(--border-dim); display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <span style="display:block; font-size:9px; font-family:var(--font-mono); color:var(--text-dim); text-transform:uppercase;">Durability Status</span>
+              <strong id="drawerDurabilityText" style="color:var(--brass-bright); font-family:var(--font-mono); font-size:11px;">100%</strong>
+            </div>
+            <div style="display:flex; gap:5px;">
+              <button class="btn btn-brass" id="btnDrawerRepair" style="height:25px; padding:0 10px; font-size:9.5px;" onclick="repairSelectedItem()">
+                Repair Item
+              </button>
+              <button class="btn" style="height:25px; padding:0 8px; font-size:9.5px; border-color:rgba(239,68,68,0.4); color:#fca5a5;" onclick="simulateDamageSelectedItem()" title="Simulate 25% combat wear">
+                Combat Wear (-25%)
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
       <!-- SUB-TABS FOR RIGHT BOTTOM -->
       <div class="sub-tabs">
-        <button class="sub-tab active" onclick="switchRightTab('kiosk', this)">Trading Post Leases</button>
+        <button class="sub-tab active" onclick="switchRightTab('kiosk', this)">Kiosk Leases</button>
+        <button class="sub-tab" id="subtab-mail" onclick="switchRightTab('mail', this)">Courier Mail <span id="tabMailCount" style="color:var(--cyan); font-weight:700;">(0)</span></button>
+        <button class="sub-tab" onclick="switchRightTab('p2p', this)">P2P Direct Trade</button>
         <button class="sub-tab" onclick="switchRightTab('dupe', this)">Concurrency Lab</button>
         <button class="sub-tab" onclick="switchRightTab('rmt', this)">Fraud Trace</button>
         <button class="sub-tab" onclick="switchRightTab('sql', this)">SQL Analytics</button>
@@ -252,6 +288,117 @@
             Audit Journal &amp; Recent Settlements
           </div>
           <div id="ledgerTapeList" style="display:flex; flex-direction:column; gap:6px;"></div>
+        </div>
+
+        <!-- SUB-PANE: IN-GAME COURIER MAILBOX -->
+        <div id="rtab-mail" style="display:none;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <div>
+              <div style="font-family:var(--font-display); font-size:11.5px; font-weight:700; color:var(--brass-bright);">
+                Tamriel Courier Service
+              </div>
+              <div style="font-size:9.5px; color:var(--text-secondary); margin-top:2px;">
+                Asynchronous parcel delivery, COD settlements & inventory overflow.
+              </div>
+            </div>
+            <button class="btn btn-brass" style="padding:4px 10px; font-size:9.5px;" onclick="toggleMailCompose()">
+              Compose Mail
+            </button>
+          </div>
+
+          <!-- Compose Mail Drawer -->
+          <div id="mailComposeBox" style="display:none; background:var(--bg-panel); border:1px solid var(--border-brass); padding:10px; margin-bottom:10px;">
+            <div style="font-family:var(--font-display); font-size:11px; font-weight:700; color:var(--brass-bright); margin-bottom:6px;">
+              Dispatch Courier Parcel
+            </div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; margin-bottom:6px;">
+              <div>
+                <label style="display:block; font-size:9px; font-family:var(--font-mono); color:var(--text-dim); text-transform:uppercase;">Recipient</label>
+                <select id="mailRecipientSelect" style="width:100%; background:var(--bg-slot); border:1px solid var(--border-mid); color:#fff; font-family:var(--font-mono); font-size:10px; padding:4px;"></select>
+              </div>
+              <div>
+                <label style="display:block; font-size:9px; font-family:var(--font-mono); color:var(--text-dim); text-transform:uppercase;">Subject</label>
+                <input type="text" id="mailSubjectInput" placeholder="Subject" style="width:100%; background:var(--bg-slot); border:1px solid var(--border-mid); color:#fff; font-family:var(--font-mono); font-size:10px; padding:4px;" />
+              </div>
+            </div>
+            <div style="margin-bottom:6px;">
+              <label style="display:block; font-size:9px; font-family:var(--font-mono); color:var(--text-dim); text-transform:uppercase;">Message</label>
+              <textarea id="mailBodyInput" rows="2" placeholder="Letter contents..." style="width:100%; background:var(--bg-slot); border:1px solid var(--border-mid); color:#fff; font-family:var(--font-mono); font-size:10px; padding:4px; outline:none;"></textarea>
+            </div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:6px; margin-bottom:8px;">
+              <div>
+                <label style="display:block; font-size:9px; font-family:var(--font-mono); color:var(--text-dim); text-transform:uppercase;">Attach Gold</label>
+                <input type="number" id="mailAttachGoldInput" value="0" style="width:100%; background:var(--bg-slot); border:1px solid var(--border-mid); color:var(--brass-bright); font-family:var(--font-mono); font-size:10px; padding:4px;" />
+              </div>
+              <div>
+                <label style="display:block; font-size:9px; font-family:var(--font-mono); color:var(--text-dim); text-transform:uppercase;">Attach Item</label>
+                <select id="mailAttachItemSelect" style="width:100%; background:var(--bg-slot); border:1px solid var(--border-mid); color:#fff; font-family:var(--font-mono); font-size:10px; padding:4px;"></select>
+              </div>
+              <div>
+                <label style="display:block; font-size:9px; font-family:var(--font-mono); color:var(--text-dim); text-transform:uppercase;">COD Fee (g)</label>
+                <input type="number" id="mailCodInput" value="0" style="width:100%; background:var(--bg-slot); border:1px solid var(--border-mid); color:var(--cyan); font-family:var(--font-mono); font-size:10px; padding:4px;" />
+              </div>
+            </div>
+            <div style="display:flex; justify-content:flex-end; gap:6px;">
+              <button class="btn" style="padding:4px 10px; font-size:9.5px;" onclick="toggleMailCompose()">Cancel</button>
+              <button class="btn btn-brass" style="padding:4px 12px; font-size:9.5px;" onclick="submitSendMail()">Send Mail</button>
+            </div>
+          </div>
+
+          <!-- Parcel Inbox List -->
+          <div id="mailboxListContainer" style="display:flex; flex-direction:column; gap:6px; max-height:270px; overflow-y:auto;">
+            <!-- Dynamically populated parcel cards -->
+          </div>
+        </div>
+
+        <!-- SUB-PANE: PEER-TO-PEER DIRECT TRADE -->
+        <div id="rtab-p2p" style="display:none;">
+          <div style="background:var(--bg-panel); border:1px solid var(--border-brass); padding:10px 12px; margin-bottom:10px;">
+            <div style="font-family:var(--font-display); font-size:11.5px; font-weight:700; color:var(--brass-bright); margin-bottom:4px;">
+              Atomic Peer-to-Peer Direct Trade
+            </div>
+            <div style="font-size:10px; color:var(--text-secondary); margin-bottom:10px; line-height:1.4;">
+              Secure 2-party atomic swap bypassing regional kiosk tax (0% tax). Serialized using two-phase locking and balanced in the double-entry general ledger.
+            </div>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px;">
+              <!-- Left: Current Trader -->
+              <div style="background:var(--bg-slot); border:1px solid var(--border-mid); padding:8px;">
+                <div style="font-family:var(--font-mono); font-size:9px; color:var(--brass-bright); text-transform:uppercase; margin-bottom:4px;">Your Offer (Trader A)</div>
+                <div id="p2pPlayerAName" style="font-weight:600; font-size:11px; margin-bottom:6px;">--</div>
+                <div style="margin-bottom:6px;">
+                  <label style="display:block; font-size:9px; font-family:var(--font-mono); color:var(--text-dim); text-transform:uppercase;">Gold Offer</label>
+                  <input type="number" id="p2pGoldA" value="0" style="width:100%; background:var(--bg-panel); border:1px solid var(--border-dim); color:var(--brass-bright); font-family:var(--font-mono); font-size:10.5px; padding:4px;" />
+                </div>
+                <div>
+                  <label style="display:block; font-size:9px; font-family:var(--font-mono); color:var(--text-dim); text-transform:uppercase;">Item Offer</label>
+                  <select id="p2pItemA" style="width:100%; background:var(--bg-panel); border:1px solid var(--border-dim); color:#fff; font-family:var(--font-mono); font-size:10px; padding:4px;"></select>
+                </div>
+              </div>
+
+              <!-- Right: Trade Partner -->
+              <div style="background:var(--bg-slot); border:1px solid var(--border-mid); padding:8px;">
+                <div style="font-family:var(--font-mono); font-size:9px; color:var(--cyan); text-transform:uppercase; margin-bottom:4px;">Partner Offer (Trader B)</div>
+                <div style="margin-bottom:6px;">
+                  <select id="p2pPartnerSelect" onchange="updateP2PPartnerInventory()" style="width:100%; background:var(--bg-panel); border:1px solid var(--border-dim); color:#fff; font-family:var(--font-mono); font-size:10.5px; padding:4px; font-weight:600;"></select>
+                </div>
+                <div style="margin-bottom:6px;">
+                  <label style="display:block; font-size:9px; font-family:var(--font-mono); color:var(--text-dim); text-transform:uppercase;">Gold Offer</label>
+                  <input type="number" id="p2pGoldB" value="0" style="width:100%; background:var(--bg-panel); border:1px solid var(--border-dim); color:var(--brass-bright); font-family:var(--font-mono); font-size:10.5px; padding:4px;" />
+                </div>
+                <div>
+                  <label style="display:block; font-size:9px; font-family:var(--font-mono); color:var(--text-dim); text-transform:uppercase;">Item Offer</label>
+                  <select id="p2pItemB" style="width:100%; background:var(--bg-panel); border:1px solid var(--border-dim); color:#fff; font-family:var(--font-mono); font-size:10px; padding:4px;"></select>
+                </div>
+              </div>
+            </div>
+
+            <div style="display:flex; justify-content:flex-end;">
+              <button class="btn btn-brass" style="padding:6px 16px; font-size:10.5px;" onclick="submitP2PTrade()">
+                Execute Atomic Trade
+              </button>
+            </div>
+          </div>
         </div>
 
         <!-- SUB-PANE 2: CONCURRENCY BENCHMARK -->
@@ -320,5 +467,31 @@
 
   <!-- APPLICATION SCRIPTS -->
   <script src="/static/js/app.js"></script>
+  <!-- AUTH TOKEN INSPECTOR MODAL -->
+  <div id="authModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:2000; align-items:center; justify-content:center;">
+    <div style="background:var(--bg-panel); border:1px solid var(--border-brass); width:480px; max-width:90vw; padding:18px; box-shadow:0 12px 36px rgba(0,0,0,0.9);">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid var(--border-dim); padding-bottom:8px;">
+        <span style="font-family:var(--font-display); font-size:13px; font-weight:700; color:var(--brass-bright);">
+          Cryptographic Session Authentication
+        </span>
+        <span style="cursor:pointer; font-family:var(--font-mono); font-size:12px; color:var(--text-dim);" onclick="toggleAuthModal()">✕</span>
+      </div>
+      <div style="font-size:10.5px; color:var(--text-secondary); margin-bottom:10px; line-height:1.4;">
+        Player identity is verified through HMAC-SHA256 bearer tokens issued on session login. The token payload is verified against <code style="color:var(--brass-bright);">AGORA_SECRET_KEY</code> for all financial transactions.
+      </div>
+      <div style="margin-bottom:10px;">
+        <label style="display:block; font-size:9px; font-family:var(--font-mono); color:var(--text-dim); text-transform:uppercase; margin-bottom:3px;">Signed Bearer Token</label>
+        <textarea id="modalAuthToken" readonly rows="3" style="width:100%; background:var(--bg-void); border:1px solid var(--border-mid); color:var(--emerald); font-family:var(--font-mono); font-size:10px; padding:6px; resize:none;"></textarea>
+      </div>
+      <div style="margin-bottom:12px;">
+        <label style="display:block; font-size:9px; font-family:var(--font-mono); color:var(--text-dim); text-transform:uppercase; margin-bottom:3px;">Decoded Session Claims</label>
+        <pre id="modalAuthClaims" style="background:var(--bg-void); border:1px solid var(--border-mid); color:var(--cyan); font-family:var(--font-mono); font-size:10px; padding:6px; overflow-x:auto;"></pre>
+      </div>
+      <div style="display:flex; justify-content:flex-end;">
+        <button class="btn btn-brass" onclick="toggleAuthModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
 </body>
 </html>

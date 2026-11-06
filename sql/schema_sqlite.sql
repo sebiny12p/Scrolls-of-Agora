@@ -3,6 +3,8 @@
 -- 13 Normalized Relations (BCNF / 3NF), Foreign Keys & Partial Covering Indexes
 -- ============================================================================
 
+DROP TABLE IF EXISTS limit_orders;
+DROP TABLE IF EXISTS player_mail;
 DROP TABLE IF EXISTS ledger_journal;
 DROP TABLE IF EXISTS price_history_ohlc;
 DROP TABLE IF EXISTS ledger_transactions;
@@ -190,12 +192,42 @@ CREATE TABLE price_history_ohlc (
 CREATE TABLE ledger_journal (
     entry_id INTEGER PRIMARY KEY AUTOINCREMENT,
     tx_group_id TEXT NOT NULL,
-    event_type TEXT NOT NULL CHECK (event_type IN ('BUYOUT', 'ESCROW_LOCK', 'ESCROW_REFUND', 'FORGE_FEE', 'KIOSK_BID', 'KIOSK_WIN_FEE', 'KIOSK_REFUND', 'SEIZURE')),
+    event_type TEXT NOT NULL CHECK (event_type IN ('BUYOUT', 'ESCROW_LOCK', 'ESCROW_REFUND', 'FORGE_FEE', 'KIOSK_BID', 'KIOSK_WIN_FEE', 'KIOSK_REFUND', 'SEIZURE', 'REPAIR_FEE', 'P2P_TRADE', 'LIMIT_ESCROW_LOCK', 'LIMIT_ESCROW_REFUND', 'LIMIT_MATCH', 'MAIL_COD')),
     account_type TEXT NOT NULL CHECK (account_type IN ('PLAYER_LIQUID', 'PLAYER_ESCROW', 'GUILD_TREASURY', 'SYSTEM_SINK')),
     account_id TEXT NOT NULL,
     amount INTEGER NOT NULL,
     balance_after INTEGER,
     description TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
+);
+
+-- 14. PLAYER MAIL & ASYNCHRONOUS COURIER PARCELS
+CREATE TABLE player_mail (
+    mail_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    recipient_id INTEGER NOT NULL REFERENCES players(player_id) ON DELETE CASCADE,
+    sender_name TEXT NOT NULL DEFAULT 'Agora Courier',
+    subject TEXT NOT NULL,
+    body TEXT NOT NULL DEFAULT '',
+    attached_gold INTEGER NOT NULL DEFAULT 0 CHECK (attached_gold >= 0),
+    attached_instance_id INTEGER REFERENCES inventory_items(instance_id) ON DELETE SET NULL,
+    cod_amount INTEGER NOT NULL DEFAULT 0 CHECK (cod_amount >= 0),
+    is_read INTEGER NOT NULL DEFAULT 0,
+    is_collected INTEGER NOT NULL DEFAULT 0,
+    sent_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+    expires_at TEXT
+);
+
+-- 15. CONTINUOUS DOUBLE-SIDED LIMIT ORDERBOOK (Bid & Ask Matching)
+CREATE TABLE limit_orders (
+    order_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    player_id INTEGER NOT NULL REFERENCES players(player_id) ON DELETE CASCADE,
+    item_id INTEGER NOT NULL REFERENCES item_templates(item_id) ON DELETE CASCADE,
+    realm_id INTEGER NOT NULL REFERENCES realms(realm_id) ON DELETE CASCADE,
+    side TEXT NOT NULL CHECK (side IN ('BUY', 'SELL')),
+    unit_price INTEGER NOT NULL CHECK (unit_price > 0),
+    quantity INTEGER NOT NULL DEFAULT 1 CHECK (quantity > 0),
+    filled_quantity INTEGER NOT NULL DEFAULT 0 CHECK (filled_quantity >= 0),
+    status TEXT NOT NULL DEFAULT 'OPEN' CHECK (status IN ('OPEN', 'FILLED', 'CANCELLED')),
     created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
 );
 
@@ -209,3 +241,5 @@ CREATE INDEX idx_ledger_executed_at ON ledger_transactions (executed_at DESC);
 CREATE INDEX idx_ohlc_item_realm_time ON price_history_ohlc (item_id, realm_id, candle_id DESC);
 CREATE INDEX idx_journal_tx_group ON ledger_journal(tx_group_id);
 CREATE INDEX idx_journal_account ON ledger_journal(account_type, account_id);
+CREATE INDEX idx_mail_recipient ON player_mail(recipient_id, is_collected);
+CREATE INDEX idx_limit_orders_active ON limit_orders(item_id, realm_id, side, status);

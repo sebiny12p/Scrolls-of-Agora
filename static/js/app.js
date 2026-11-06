@@ -77,6 +77,50 @@ let selectedRealmId = 0; // 0 = All Tamriel Hubs
 let selectedListing = null;
 let selectedBagItem = null;
 let simTimer = null;
+let currentAuthToken = null;
+let currentAuthClaims = null;
+let orderbookMode = 'kiosks'; // 'kiosks' or 'limit'
+let activeRightTab = 'kiosk';
+
+async function authenticateActivePlayer() {
+  try {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ player_id: activePlayerId })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      currentAuthToken = data.token;
+      currentAuthClaims = data.player;
+      const b = document.getElementById('authBadge');
+      if (b) b.textContent = `🔒 HMAC: ${data.player.username.slice(0, 14)}`;
+      const tokEl = document.getElementById('modalAuthToken');
+      const clmEl = document.getElementById('modalAuthClaims');
+      if (tokEl) tokEl.value = currentAuthToken;
+      if (clmEl) clmEl.textContent = JSON.stringify(currentAuthClaims, null, 2);
+    }
+  } catch (e) {
+    console.error('[Auth Error]', e);
+  }
+}
+
+async function fetchWithAuth(url, options = {}) {
+  if (!currentAuthToken) {
+    await authenticateActivePlayer();
+  }
+  options.headers = options.headers || {};
+  if (currentAuthToken && !options.headers['Authorization']) {
+    options.headers['Authorization'] = `Bearer ${currentAuthToken}`;
+  }
+  return fetch(url, options);
+}
+
+function toggleAuthModal() {
+  const m = document.getElementById('authModal');
+  if (!m) return;
+  m.style.display = m.style.display === 'flex' ? 'none' : 'flex';
+}
 
 function notify(msg, isErr = false) {
   const el = document.getElementById('statusBanner');
@@ -236,6 +280,9 @@ async function renderItemChart(itemId) {
 // MAIN DATA REFRESH & RENDERING
 // =========================================================================
 async function loadState() {
+  if (!currentAuthToken) {
+    await authenticateActivePlayer();
+  }
   const res = await fetch(`/api/state?player_id=${activePlayerId}&realm_id=${selectedRealmId}`);
   marketState = await res.json();
 
@@ -247,6 +294,13 @@ async function loadState() {
   document.getElementById('mEscrow').textContent = k.total_escrow_locked.toLocaleString() + 'g';
   document.getElementById('mSerials').textContent = k.items_duplicated > 0 ? `${k.items_duplicated} Duplicates` : 'Verified 1:1';
   document.getElementById('engineBadge').textContent = 'SQLite · Row-Level Locks';
+
+  // Mail Counters
+  const unreadMail = (marketState.kpis && marketState.kpis.uncollected_mail) || 0;
+  const topMailEl = document.getElementById('topbarMailCount');
+  if (topMailEl) topMailEl.textContent = unreadMail;
+  const tabMailEl = document.getElementById('tabMailCount');
+  if (tabMailEl) tabMailEl.textContent = `(${unreadMail})`;
 
   // Render Interactive 5-Hub Tamriel Map
   renderTamrielMap();
@@ -278,8 +332,10 @@ async function loadState() {
       ${p.username.replace(/_/g, ' ')} — Level ${p.level} ${p.character_class} (${p.realm_name})
     </option>`
   ).join('');
-  sel.onchange = () => {
+  sel.onchange = async () => {
     activePlayerId = parseInt(sel.value, 10);
+    currentAuthToken = null;
+    await authenticateActivePlayer();
     closeListDrawer();
     loadState();
   };
@@ -375,11 +431,24 @@ async function loadState() {
   // Render 20-Slot Inventory Bag
   const bagGrid = document.getElementById('inventoryBagGrid');
   const inv = marketState.inventory || [];
+  const bagTitleEl = document.getElementById('bagSlotsTitle');
+  if (bagTitleEl) bagTitleEl.textContent = `Trader Inventory (${inv.length}/20 Slots)`;
+
   let slotsHtml = '';
   for (let i = 0; i < 20; i++) {
     if (i < inv.length) {
       const item = inv[i];
       const isBagSel = selectedBagItem && selectedBagItem.instance_id === item.instance_id;
+      const dur = (item.current_durability !== undefined && item.current_durability !== null) ? item.current_durability : 100;
+      const durCls = dur > 70 ? '' : (dur > 30 ? 'warn' : 'danger');
+      const isEquip = !!item.equip_slot;
+      const durHtml = isEquip ? `
+        <div class="durability-bar">
+          <div class="durability-fill ${durCls}" style="width:${dur}%;"></div>
+        </div>
+        ${dur < 100 ? `<span class="durability-badge" style="${dur <= 30 ? 'color:#f87171;' : ''}">${dur}%</span>` : ''}
+      ` : '';
+
       slotsHtml += `
         <div class="item-slot slot-${item.rarity} ${isBagSel ? 'selected-bag-slot' : ''}"
              onclick='openListDrawer(${JSON.stringify(item).replace(/'/g, "&#39;")})'
@@ -389,6 +458,7 @@ async function loadState() {
           ${item.is_escrowed ? `<span class="escrow-tag">LISTED</span>` : ''}
           ${item.temper_tier > 0 ? `<span class="temper-badge">+${item.temper_tier}</span>` : ''}
           ${getItemSvg(item.icon_key)}
+          ${durHtml}
           ${item.stack_size > 1 ? `<span class="stack-count">${item.stack_size}</span>` : ''}
         </div>
       `;
@@ -397,6 +467,16 @@ async function loadState() {
     }
   }
   bagGrid.innerHTML = slotsHtml;
+
+  // Refresh dependent tabs if currently open
+  if (orderbookMode === 'limit') {
+    renderOrderbookDepth();
+  }
+  if (activeRightTab === 'mail') {
+    loadMailbox();
+  } else if (activeRightTab === 'p2p') {
+    renderP2PInterface();
+  }
 
   // Render Settlement Tape
   document.getElementById('ledgerTapeList').innerHTML = marketState.ledger.map(tx => `
@@ -509,7 +589,7 @@ function renderSelectedItemDeck() {
 // TRADING, ARCANE TEMPERING & KIOSK ACTIONS
 // =========================================================================
 async function executeBuyout(listingId) {
-  const res = await fetch('/api/buyout', {
+  const res = await fetchWithAuth('/api/buyout', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ listing_id: listingId, buyer_id: activePlayerId })
@@ -524,7 +604,7 @@ async function executeBuyout(listingId) {
 }
 
 async function placeEscrowBid(listingId, bidAmount) {
-  const res = await fetch('/api/bid', {
+  const res = await fetchWithAuth('/api/bid', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ listing_id: listingId, bidder_id: activePlayerId, bid_amount: bidAmount })
@@ -552,6 +632,17 @@ function openListDrawer(item) {
   if (selectedRealmId > 0) {
     document.getElementById('listHubSelect').value = selectedRealmId;
   }
+  const durSec = document.getElementById('durabilityRow');
+  if (durSec) {
+    if (item.equip_slot) {
+      durSec.style.display = 'flex';
+      const d = (item.current_durability !== undefined && item.current_durability !== null) ? item.current_durability : 100;
+      const fee = Math.max(0, (100 - d) * 5);
+      document.getElementById('drawerDurabilityText').textContent = `${d}% (${fee > 0 ? fee + 'g repair fee' : 'Pristine'})`;
+    } else {
+      durSec.style.display = 'none';
+    }
+  }
   document.getElementById('listDrawer').classList.add('open');
   loadState();
 }
@@ -566,7 +657,7 @@ async function submitListItem() {
   const realmId = parseInt(document.getElementById('listHubSelect').value, 10);
   const startP = parseInt(document.getElementById('listStartPrice').value, 10);
   const buyoutP = parseInt(document.getElementById('listBuyoutPrice').value, 10);
-  const res = await fetch('/api/list-item', {
+  const res = await fetchWithAuth('/api/list-item', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -590,7 +681,7 @@ async function submitListItem() {
 async function submitTemperItem() {
   if (!selectedBagItem) return;
   const enchantId = parseInt(document.getElementById('forgeGlyphSelect').value, 10);
-  const res = await fetch('/api/temper-item', {
+  const res = await fetchWithAuth('/api/temper-item', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -613,7 +704,7 @@ async function submitKioskSealedBid() {
   const realmId = parseInt(document.getElementById('kioskBidHub').value, 10);
   const guildId = parseInt(document.getElementById('kioskBidGuild').value, 10);
   const bidGold = parseInt(document.getElementById('kioskBidAmount').value, 10);
-  const res = await fetch('/api/kiosk-bid', {
+  const res = await fetchWithAuth('/api/kiosk-bid', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ realm_id: realmId, guild_id: guildId, bid_gold: bidGold })
@@ -628,7 +719,7 @@ async function submitKioskSealedBid() {
 }
 
 async function triggerWeeklyKioskFlip() {
-  const res = await fetch('/api/kiosk-flip', { method: 'POST' });
+  const res = await fetchWithAuth('/api/kiosk-flip', { method: 'POST' });
   const data = await res.json();
   notify(data.message);
   loadState();
@@ -638,13 +729,21 @@ async function triggerWeeklyKioskFlip() {
 // RIGHT WORKBENCH TABS
 // =========================================================================
 function switchRightTab(key, btn) {
+  activeRightTab = key;
   document.querySelectorAll('.sub-tab').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  document.getElementById('rtab-kiosk').style.display = key === 'kiosk' ? 'block' : 'none';
-  document.getElementById('rtab-dupe').style.display = key === 'dupe' ? 'block' : 'none';
-  document.getElementById('rtab-rmt').style.display = key === 'rmt' ? 'block' : 'none';
-  document.getElementById('rtab-sql').style.display = key === 'sql' ? 'block' : 'none';
-  if (key === 'rmt') {
+  if (btn) btn.classList.add('active');
+
+  const panes = ['kiosk', 'mail', 'p2p', 'dupe', 'rmt', 'sql'];
+  panes.forEach(p => {
+    const el = document.getElementById(`rtab-${p}`);
+    if (el) el.style.display = p === key ? 'block' : 'none';
+  });
+
+  if (key === 'mail') {
+    loadMailbox();
+  } else if (key === 'p2p') {
+    renderP2PInterface();
+  } else if (key === 'rmt') {
     loadRmtLaunderingGraph();
   } else if (key === 'sql') {
     loadQueryInspector('q5_cross_realm_arbitrage');
@@ -796,4 +895,440 @@ window.addEventListener('resize', () => {
   if (selectedListing) renderItemChart(selectedListing.item_id);
 });
 
+function initWebSocketFeed() {
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const wsUrl = `${protocol}//${window.location.host}/ws/feed`;
+  let ws;
+
+  function connect() {
+    try {
+      ws = new WebSocket(wsUrl);
+      ws.onopen = () => {
+        console.log('[Agora WS] Connected to live market telemetry feed.');
+      };
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          if (['BUYOUT', 'BID_PLACED', 'KIOSK_FLIP', 'ORDERBOOK_UPDATE', 'LISTINGS_SWEPT'].includes(msg.event)) {
+            loadState();
+          }
+        } catch (e) {}
+      };
+      ws.onclose = () => {
+        setTimeout(connect, 4000);
+      };
+      ws.onerror = () => {
+        ws.close();
+      };
+    } catch (err) {}
+  }
+
+  connect();
+}
+
+initWebSocketFeed();
 loadState();
+
+
+// =========================================================================
+// DECENTRALIZED REGIONAL LIMIT ORDERBOOK & DEPTH LADDER
+// =========================================================================
+function switchOrderbookMode(mode) {
+  orderbookMode = mode;
+  const btnK = document.getElementById('btnModeKiosks');
+  const btnL = document.getElementById('btnModeLimit');
+  const tbl = document.getElementById('kioskTable');
+  const dpt = document.getElementById('limitDepthContainer');
+
+  if (mode === 'kiosks') {
+    btnK.classList.add('active');
+    btnL.classList.remove('active');
+    tbl.style.display = 'table';
+    dpt.style.display = 'none';
+  } else {
+    btnK.classList.remove('active');
+    btnL.classList.add('active');
+    tbl.style.display = 'none';
+    dpt.style.display = 'block';
+    renderOrderbookDepth();
+  }
+}
+
+async function renderOrderbookDepth() {
+  const container = document.getElementById('limitDepthContainer');
+  if (!container) return;
+
+  const targetItemId = selectedListing ? selectedListing.item_id : 5004;
+  const targetItemName = selectedListing ? selectedListing.item_name : 'Crown of White-Gold';
+  const hubName = selectedRealmId === 0 ? 'All Tamriel Posts' : (marketState.realms.find(r => r.realm_id === selectedRealmId)?.realm_name || 'Regional Kiosk');
+
+  const res = await fetch(`/api/orderbook/depth?item_id=${targetItemId}&realm_id=${selectedRealmId}`);
+  const data = await res.json();
+  const bids = data.bids || [];
+  const asks = data.asks || [];
+  const spread = data.spread !== null ? `${data.spread.toLocaleString()}g` : 'N/A';
+
+  const maxBidVol = Math.max(...bids.map(b => b.volume), 1);
+  const maxAskVol = Math.max(...asks.map(a => a.volume), 1);
+
+  const bidsHtml = bids.length === 0 ? '<div style="color:var(--text-dim); padding:6px; font-size:10px;">No open buy orders in this hub.</div>' :
+    bids.map(b => `
+      <div class="depth-row">
+        <div class="depth-bar-bg depth-bar-bid" style="width:${Math.round((b.volume/maxBidVol)*100)}%;"></div>
+        <span style="color:var(--emerald); font-weight:700;">${b.unit_price.toLocaleString()}g</span>
+        <span style="color:var(--text-primary);">${b.volume} units</span>
+        <span style="color:var(--text-dim);">${b.order_count} ord</span>
+      </div>
+    `).join('');
+
+  const asksHtml = asks.length === 0 ? '<div style="color:var(--text-dim); padding:6px; font-size:10px;">No open sell orders in this hub.</div>' :
+    asks.map(a => `
+      <div class="depth-row">
+        <div class="depth-bar-bg depth-bar-ask" style="width:${Math.round((a.volume/maxAskVol)*100)}%;"></div>
+        <span style="color:#f87171; font-weight:700;">${a.unit_price.toLocaleString()}g</span>
+        <span style="color:var(--text-primary);">${a.volume} units</span>
+        <span style="color:var(--text-dim);">${a.order_count} ord</span>
+      </div>
+    `).join('');
+
+  container.innerHTML = `
+    <div style="background:var(--bg-panel); border:1px solid var(--border-brass); padding:10px; margin-bottom:10px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <div>
+          <span style="font-family:var(--font-display); font-size:12px; font-weight:700; color:var(--brass-bright);">${targetItemName}</span>
+          <span style="font-family:var(--font-mono); font-size:9.5px; color:var(--text-secondary); margin-left:6px;">[${hubName}]</span>
+        </div>
+        <span style="font-family:var(--font-mono); font-size:10.5px; color:var(--cyan); font-weight:600;">Spread: ${spread}</span>
+      </div>
+
+      <!-- Quick Limit Placement -->
+      <div style="display:grid; grid-template-columns: auto 1fr 1fr auto; gap:6px; align-items:flex-end; background:var(--bg-slot); padding:8px; border:1px solid var(--border-dim);">
+        <div>
+          <label style="display:block; font-size:8.5px; font-family:var(--font-mono); color:var(--text-dim); text-transform:uppercase;">Order Side</label>
+          <select id="limitSideSelect" style="background:var(--bg-panel); border:1px solid var(--border-mid); color:#fff; font-family:var(--font-mono); font-size:10px; padding:4px;">
+            <option value="BUY">BUY (Bid)</option>
+            <option value="SELL">SELL (Ask)</option>
+          </select>
+        </div>
+        <div>
+          <label style="display:block; font-size:8.5px; font-family:var(--font-mono); color:var(--text-dim); text-transform:uppercase;">Limit Price (g)</label>
+          <input type="number" id="limitPriceInput" placeholder="Price" value="${bids[0]?.unit_price || 15000}" style="width:100%; background:var(--bg-panel); border:1px solid var(--border-mid); color:var(--brass-bright); font-family:var(--font-mono); font-size:10.5px; padding:4px;" />
+        </div>
+        <div>
+          <label style="display:block; font-size:8.5px; font-family:var(--font-mono); color:var(--text-dim); text-transform:uppercase;">Quantity</label>
+          <input type="number" id="limitQtyInput" value="1" min="1" style="width:100%; background:var(--bg-panel); border:1px solid var(--border-mid); color:#fff; font-family:var(--font-mono); font-size:10.5px; padding:4px;" />
+        </div>
+        <button class="btn btn-brass" style="height:27px; padding:0 12px; font-size:10px;" onclick="submitLimitOrder()">
+          Submit Limit Order
+        </button>
+      </div>
+    </div>
+
+    <div class="depth-grid">
+      <div class="depth-column">
+        <div style="font-family:var(--font-display); font-size:10.5px; font-weight:700; color:var(--emerald); margin-bottom:6px; border-bottom:1px solid rgba(16,185,129,0.3); padding-bottom:3px;">
+          BIDS (Buyers · Escrow Gold)
+        </div>
+        ${bidsHtml}
+      </div>
+      <div class="depth-column">
+        <div style="font-family:var(--font-display); font-size:10.5px; font-weight:700; color:#f87171; margin-bottom:6px; border-bottom:1px solid rgba(239,68,68,0.3); padding-bottom:3px;">
+          ASKS (Sellers · Escrow Items)
+        </div>
+        ${asksHtml}
+      </div>
+    </div>
+  `;
+}
+
+async function submitLimitOrder() {
+  const side = document.getElementById('limitSideSelect').value;
+  const price = parseInt(document.getElementById('limitPriceInput').value, 10);
+  const qty = parseInt(document.getElementById('limitQtyInput').value, 10);
+  const targetItemId = selectedListing ? selectedListing.item_id : 5004;
+  const realmId = selectedRealmId > 0 ? selectedRealmId : 1;
+
+  const res = await fetchWithAuth('/api/orderbook/limit-order', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      player_id: activePlayerId,
+      item_id: targetItemId,
+      realm_id: realmId,
+      side: side,
+      unit_price: price,
+      quantity: qty
+    })
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) {
+    notify(data.detail || data.message || 'Order rejected', true);
+  } else {
+    notify(data.message);
+    loadState();
+    renderOrderbookDepth();
+  }
+}
+
+// =========================================================================
+// IN-GAME COURIER MAILBOX
+// =========================================================================
+function openMailboxTab() {
+  const tabBtn = document.getElementById('subtab-mail');
+  switchRightTab('mail', tabBtn);
+}
+
+function toggleMailCompose() {
+  const box = document.getElementById('mailComposeBox');
+  if (!box) return;
+  const isOpen = box.style.display !== 'none';
+  box.style.display = isOpen ? 'none' : 'block';
+  if (!isOpen) {
+    // Populate recipients
+    const recSel = document.getElementById('mailRecipientSelect');
+    recSel.innerHTML = marketState.players
+      .filter(p => p.player_id !== activePlayerId)
+      .map(p => `<option value="${p.player_id}">${p.username.replace(/_/g, ' ')} (${p.realm_name})</option>`)
+      .join('');
+
+    // Populate attachable items
+    const itmSel = document.getElementById('mailAttachItemSelect');
+    const unescrowed = (marketState.inventory || []).filter(i => !i.is_escrowed);
+    itmSel.innerHTML = '<option value="">None (Letter / Gold Only)</option>' +
+      unescrowed.map(i => `<option value="${i.instance_id}">${i.item_name} [${i.mint_serial}]</option>`).join('');
+  }
+}
+
+async function loadMailbox() {
+  const container = document.getElementById('mailboxListContainer');
+  if (!container) return;
+
+  const res = await fetchWithAuth(`/api/mail?player_id=${activePlayerId}`);
+  const data = await res.json();
+  const mailItems = data.mailbox || [];
+
+  if (mailItems.length === 0) {
+    container.innerHTML = '<div style="color:var(--text-dim); padding:16px; text-align:center; font-size:10.5px; border:1px dashed var(--border-dim);">Your mailbox is empty. Courier parcels and auction returns will arrive here.</div>';
+    return;
+  }
+
+  container.innerHTML = mailItems.map(m => {
+    const isUnclaimed = !m.is_collected;
+    const hasItem = !!m.attached_instance_id;
+    const hasGold = m.attached_gold > 0;
+    const hasCod = m.cod_amount > 0;
+
+    let attachPill = '';
+    if (hasGold) attachPill += `<span style="color:var(--brass-bright); font-weight:700;">+${m.attached_gold.toLocaleString()}g</span> `;
+    if (hasItem) attachPill += `<span class="text-${m.rarity || 'Common'}" style="font-weight:600;">[${m.item_name || 'Item'} (${m.mint_serial || ''})]</span> `;
+    if (hasCod) attachPill += `<span style="color:var(--cyan);">(COD: ${m.cod_amount.toLocaleString()}g)</span>`;
+
+    return `
+      <div class="mail-parcel-card ${isUnclaimed ? 'uncollected' : ''}">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+          <div style="font-weight:700; font-size:11px; color:${isUnclaimed ? 'var(--brass-bright)' : 'var(--text-secondary)'};">
+            ${m.subject}
+          </div>
+          <span style="font-family:var(--font-mono); font-size:9px; color:var(--text-dim);">${m.sent_at.slice(0, 16)}</span>
+        </div>
+        <div style="font-size:9.5px; color:var(--text-dim); margin-bottom:5px;">
+          From: <strong style="color:var(--text-primary);">${m.sender_name.replace(/_/g, ' ')}</strong>
+        </div>
+        <div style="font-size:10px; color:var(--text-secondary); line-height:1.35; margin-bottom:6px; background:var(--bg-slot); padding:5px 7px; border:1px solid var(--border-dim);">
+          ${m.body || 'No attached message.'}
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; font-family:var(--font-mono); font-size:9.5px;">
+          <div>${attachPill || '<span style="color:var(--text-dim);">No attachments</span>'}</div>
+          <div>
+            ${isUnclaimed ? `
+              <button class="btn btn-brass" style="height:23px; padding:0 10px; font-size:9px;" onclick="claimMailParcel(${m.mail_id})">
+                Claim Parcel
+              </button>
+            ` : '<span style="color:var(--emerald); font-size:9px; font-weight:700;">COLLECTED</span>'}
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function claimMailParcel(mailId) {
+  const res = await fetchWithAuth('/api/mail/claim', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mail_id: mailId, player_id: activePlayerId })
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) {
+    notify(data.detail || data.message || 'Could not claim mail', true);
+  } else {
+    notify(data.message);
+    loadState();
+    loadMailbox();
+  }
+}
+
+async function submitSendMail() {
+  const recId = parseInt(document.getElementById('mailRecipientSelect').value, 10);
+  const subj = document.getElementById('mailSubjectInput').value.trim();
+  const body = document.getElementById('mailBodyInput').value.trim();
+  const gold = parseInt(document.getElementById('mailAttachGoldInput').value, 10) || 0;
+  const cod = parseInt(document.getElementById('mailCodInput').value, 10) || 0;
+  const itmVal = document.getElementById('mailAttachItemSelect').value;
+  const itmId = itmVal ? parseInt(itmVal, 10) : null;
+
+  if (!subj) {
+    notify('Subject is required to send mail.', true);
+    return;
+  }
+
+  const res = await fetchWithAuth('/api/mail/send', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      sender_id: activePlayerId,
+      recipient_id: recId,
+      subject: subj,
+      body: body,
+      attached_gold: gold,
+      attached_instance_id: itmId,
+      cod_amount: cod
+    })
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) {
+    notify(data.detail || data.message || 'Failed to dispatch mail', true);
+  } else {
+    notify(data.message);
+    toggleMailCompose();
+    loadState();
+    loadMailbox();
+  }
+}
+
+// =========================================================================
+// BLACKSMITH REPAIR & DURABILITY SYSTEM
+// =========================================================================
+async function repairAllPlayerGear() {
+  const res = await fetchWithAuth('/api/blacksmith/repair', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ player_id: activePlayerId })
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) {
+    notify(data.detail || data.message || 'Repair rejected', true);
+  } else {
+    notify(data.message);
+    loadState();
+  }
+}
+
+async function repairSelectedItem() {
+  if (!selectedBagItem) return;
+  const res = await fetchWithAuth('/api/blacksmith/repair', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ player_id: activePlayerId, instance_id: selectedBagItem.instance_id })
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) {
+    notify(data.detail || data.message || 'Repair failed', true);
+  } else {
+    notify(data.message);
+    closeListDrawer();
+    loadState();
+  }
+}
+
+async function simulateDamageSelectedItem() {
+  const res = await fetchWithAuth('/api/combat/simulate-wear', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ player_id: activePlayerId, wear_amount: 25 })
+  });
+  const data = await res.json();
+  notify(`Simulated combat wear: degraded equipment durability (-25%).`);
+  closeListDrawer();
+  loadState();
+}
+
+// =========================================================================
+// ATOMIC PEER-TO-PEER (P2P) DIRECT TRADE
+// =========================================================================
+function renderP2PInterface() {
+  const pA = marketState.players.find(p => p.player_id === activePlayerId);
+  const nameEl = document.getElementById('p2pPlayerAName');
+  if (nameEl && pA) nameEl.textContent = `${pA.username.replace(/_/g, ' ')} (${pA.realm_name})`;
+
+  // Player A items
+  const selA = document.getElementById('p2pItemA');
+  const itemsA = (marketState.inventory || []).filter(i => !i.is_escrowed);
+  if (selA) {
+    selA.innerHTML = '<option value="">None (Gold Only)</option>' +
+      itemsA.map(i => `<option value="${i.instance_id}">${i.item_name} [${i.mint_serial}]</option>`).join('');
+  }
+
+  // Partner select
+  const partnerSel = document.getElementById('p2pPartnerSelect');
+  if (partnerSel) {
+    partnerSel.innerHTML = marketState.players
+      .filter(p => p.player_id !== activePlayerId)
+      .map(p => `<option value="${p.player_id}">${p.username.replace(/_/g, ' ')} (${p.realm_name})</option>`)
+      .join('');
+    updateP2PPartnerInventory();
+  }
+}
+
+async function updateP2PPartnerInventory() {
+  const partnerSel = document.getElementById('p2pPartnerSelect');
+  if (!partnerSel || !partnerSel.value) return;
+  const pid = parseInt(partnerSel.value, 10);
+
+  const res = await fetch(`/api/state?player_id=${pid}`);
+  const state = await res.json();
+  const selB = document.getElementById('p2pItemB');
+  const itemsB = (state.inventory || []).filter(i => !i.is_escrowed);
+  if (selB) {
+    selB.innerHTML = '<option value="">None (Gold Only)</option>' +
+      itemsB.map(i => `<option value="${i.instance_id}">${i.item_name} [${i.mint_serial}]</option>`).join('');
+  }
+}
+
+async function submitP2PTrade() {
+  const partnerId = parseInt(document.getElementById('p2pPartnerSelect').value, 10);
+  const goldA = parseInt(document.getElementById('p2pGoldA').value, 10) || 0;
+  const goldB = parseInt(document.getElementById('p2pGoldB').value, 10) || 0;
+  const itmAVal = document.getElementById('p2pItemA').value;
+  const itmBVal = document.getElementById('p2pItemB').value;
+  const itmA = itmAVal ? parseInt(itmAVal, 10) : null;
+  const itmB = itmBVal ? parseInt(itmBVal, 10) : null;
+
+  const res = await fetchWithAuth('/api/trade/p2p', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      player_a_id: activePlayerId,
+      player_b_id: partnerId,
+      gold_a: goldA,
+      gold_b: goldB,
+      instance_a_id: itmA,
+      instance_b_id: itmB
+    })
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) {
+    notify(data.detail || data.message || 'P2P Trade declined', true);
+  } else {
+    notify(data.message);
+    loadState();
+    renderP2PInterface();
+  }
+}
+
+async function triggerSweepExpired() {
+  const res = await fetchWithAuth('/api/kiosk/sweep-expired', { method: 'POST' });
+  const data = await res.json();
+  notify(data.message || 'Expired listings swept.');
+  loadState();
+}

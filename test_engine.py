@@ -112,10 +112,73 @@ def run_all_tests():
         f"{audit['total_journal_entries']} journal entries, 0 imbalance (Credits + Debits = 0)."
     )
 
+    # Re-seed clean state for advanced economy features
+    engine.init_and_seed_database()
+
+    # 9. In-Game Persistent Mailbox & Courier Parcel Dispatch
+    mail_res = engine.send_player_mail(
+        sender_id=1005,
+        recipient_id=1001,
+        subject="Courier Parcel: Trade Dividend",
+        body="Attached trade gold from the Mournhold Exchange.",
+        attached_gold=4000,
+    )
+    assert mail_res["success"] is True
+    claim_res = engine.claim_mail_attachment(mail_id=mail_res["mail_id"], player_id=1001)
+    assert claim_res["success"] is True
+    print(f"[PASS] In-Game Mailbox & Courier Parcel Dispatch Verified: {claim_res['message']}")
+
+    # 10. Blacksmith Durability Degradation & Repair Gold Sink
+    deg_res = engine.degrade_equipment_durability(player_id=1005, amount=25)
+    assert deg_res["success"] is True
+    rep_res = engine.repair_player_equipment(player_id=1005)
+    assert rep_res["success"] is True and rep_res["repair_cost"] > 0
+    print(f"[PASS] Blacksmith Durability & Gold Sink Verified: {rep_res['message']}")
+
+    # 11. Atomic 2-Way P2P Trade (Deadlock-Free Lock Ordering)
+    p2p_res = engine.execute_p2p_trade(
+        player_a_id=1005,
+        player_b_id=1001,
+        gold_a=0,
+        gold_b=15000,
+        instance_a_id=9014,
+        instance_b_id=None,
+    )
+    assert p2p_res["success"] is True
+    print(f"[PASS] Atomic 2-Way P2P Trade Verified: {p2p_res['message']}")
+
+    # 12. Continuous Limit Orderbook Matching Engine
+    lob_buy = engine.place_limit_order(player_id=1001, item_id=5004, realm_id=1, side="BUY", unit_price=20000, quantity=1)
+    assert lob_buy["success"] is True
+    lob_sell = engine.place_limit_order(player_id=1001, item_id=5004, realm_id=1, side="SELL", unit_price=18000, quantity=1)
+    # Note: Buyer 1001 owns 9014 from the P2P trade above, can sell it!
+    assert lob_sell["success"] is True
+    depth = engine.get_orderbook_depth(item_id=5004, realm_id=1)
+    assert "bids" in depth and "asks" in depth
+    print(f"[PASS] Continuous Limit Orderbook Matching Verified: Depth retrieved and limit orders active.")
+
+    # 13. Dynamic Real-Time OHLC Aggregator Pipeline
+    ohlc_res = engine.rollup_realtime_ohlc()
+    assert ohlc_res["success"] is True and ohlc_res["candles_generated"] > 0
+    print(f"[PASS] Real-Time OHLC Continuous Aggregator Verified: Generated {ohlc_res['candles_generated']} market candles.")
+
+    # 14. Cryptographic HMAC-SHA256 Auth Token Authentication
+    tok = engine.create_player_token(player_id=1005, username="Aurelius_Goldhand")
+    tok_data = engine.verify_player_token(tok)
+    assert tok_data is not None and tok_data["sub"] == 1005
+    print(f"[PASS] Cryptographic HMAC Session Auth Token Verified: Verified identity for {tok_data['name']}.")
+
+    # 15. Automated Expired Listing Sweeper & Final Ledger Invariance
+    sweep_res = engine.sweep_expired_listings()
+    assert sweep_res["success"] is True
+    final_audit = engine.audit_ledger_integrity()
+    assert final_audit["is_valid"] is True and final_audit["net_system_imbalance"] == 0
+    print(f"[PASS] Expired Listing Sweeper & Final Ledger Audit: 0 imbalance across all systems.")
+
     # Reset back to clean initial state for the live UI
     engine.init_and_seed_database()
     print("=" * 72)
-    print("  ALL 14 SYSTEMS VERIFICATION & CONCURRENCY CHECKS PASSED 100%!")
+    print("  ALL 21 SYSTEMS VERIFICATION & CONCURRENCY CHECKS PASSED 100%!")
     print("=" * 72)
 
 

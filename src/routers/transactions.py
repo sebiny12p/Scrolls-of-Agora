@@ -4,8 +4,18 @@ Handles buyouts, escrow bids, inventory listing, arcane forge, and weekly kiosk 
 """
 
 import random
-from fastapi import APIRouter, HTTPException
-from src.models import BuyoutRequest, BidRequest, ListItemRequest, TemperCraftRequest, KioskBidRequest
+from typing import Optional
+from fastapi import APIRouter, HTTPException, Depends
+from src.models import (
+    BuyoutRequest,
+    BidRequest,
+    ListItemRequest,
+    TemperCraftRequest,
+    KioskBidRequest,
+    RepairRequest,
+    SimulateWearRequest,
+    P2PTradeRequest,
+)
 from src.repositories.transaction_repo import (
     execute_pessimistic_buyout,
     place_escrow_bid,
@@ -13,7 +23,12 @@ from src.repositories.transaction_repo import (
     temper_and_enchant_item,
     place_kiosk_bid,
     trigger_weekly_kiosk_flip,
+    repair_player_equipment,
+    degrade_equipment_durability,
+    execute_p2p_trade,
+    sweep_expired_listings,
 )
+from src.auth import get_current_player_id, resolve_effective_player_id
 from src.database import get_db_cursor, execute_sql, rows_to_dicts, row_to_dict
 
 router = APIRouter(tags=["ACID Transactions"])
@@ -123,3 +138,49 @@ def trigger_autonomous_market_bot():
                 return {"action": "BID", "detail": res.get("message", "Placed bid")}
 
         return {"action": "IDLE", "detail": "Market equilibrium stable."}
+
+
+@router.post("/api/blacksmith/repair")
+def api_repair_equipment(
+    req: RepairRequest,
+    auth_pid: Optional[int] = Depends(get_current_player_id),
+):
+    pid = resolve_effective_player_id(req.player_id, auth_pid)
+    res = repair_player_equipment(player_id=pid, instance_id=req.instance_id)
+    if not res["success"]:
+        raise HTTPException(status_code=400, detail=res["message"])
+    return res
+
+
+@router.post("/api/combat/simulate-wear")
+def api_simulate_wear(
+    req: SimulateWearRequest,
+    auth_pid: Optional[int] = Depends(get_current_player_id),
+):
+    pid = resolve_effective_player_id(req.player_id, auth_pid)
+    return degrade_equipment_durability(player_id=pid, amount=req.wear_amount)
+
+
+@router.post("/api/trade/p2p")
+def api_p2p_trade(
+    req: P2PTradeRequest,
+    auth_pid: Optional[int] = Depends(get_current_player_id),
+):
+    # If authenticated, ensure initiating party matches
+    pid_a = resolve_effective_player_id(req.player_a_id, auth_pid)
+    res = execute_p2p_trade(
+        player_a_id=pid_a,
+        player_b_id=req.player_b_id,
+        gold_a=req.gold_a,
+        gold_b=req.gold_b,
+        instance_a_id=req.instance_a_id,
+        instance_b_id=req.instance_b_id,
+    )
+    if not res["success"]:
+        raise HTTPException(status_code=400, detail=res["message"])
+    return res
+
+
+@router.post("/api/kiosk/sweep-expired")
+def api_sweep_expired():
+    return sweep_expired_listings()

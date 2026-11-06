@@ -11,6 +11,7 @@ from src.repositories.analytics_repo import (
     ban_and_seize_rmt_mule_ring,
     ANALYTICAL_CATALOG,
     audit_ledger_integrity,
+    rollup_realtime_ohlc,
 )
 
 router = APIRouter(tags=["Relational Algebra & Analytics"])
@@ -36,3 +37,8 @@ def api_ban_rmt_ring():
 @router.get("/api/ledger/audit")
 def api_ledger_audit():
     return audit_ledger_integrity()
+
+
+@router.post("/api/analytics/ohlc/rollup")
+def api_rollup_ohlc():
+    return rollup_realtime_ohlc()

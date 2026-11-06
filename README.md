@@ -18,7 +18,8 @@ Virtual economies—such as those in *The Elder Scrolls Online* and *EVE Online*
 4. **True Double-Entry General Ledger:** Implements balanced journal entries (`ledger_journal`) across `PLAYER_LIQUID`, `PLAYER_ESCROW`, `GUILD_TREASURY`, and `SYSTEM_SINK` accounts, enforcing the strict mathematical invariance $\sum \text{amount} = 0$ across all transaction groups (buyouts, escrow locks, outbid refunds, forge fees, and kiosk leases).
 5. **Cycle-Safe Recursive CTE Graph Traversal (`WITH RECURSIVE`):** Multi-hop cycle and wash-trade detection tracing illicit currency flows through Real-Money Trading (RMT) mule chains, guarded against infinite recursion via SQL-level path-traversal tracking.
 6. **Formal Relational Normalization:** 15 tables decomposed into **Boyce-Codd Normal Form (BCNF)** and **Third Normal Form (3NF)** with ISA subtype specialization (`item_templates` $\to$ `equipment_specs` / `consumable_specs`) and partial B-Tree covering indexes.
-7. **Dual-Engine Relational Abstraction:** Native support for both **PostgreSQL** (Docker Compose connection pool with PL/pgSQL procedures) and zero-config **SQLite 3** (Write-Ahead Logging with immediate 2PL serialization).
+7. **Dual-Engine Relational Abstraction:** Native support for both **PostgreSQL** (Docker Compose connection pool with PL/pgSQL procedures) and zero-config **SQLite 3** (Write-Ahead Logging with immediate 2PL serialization), adapted via unified primary key execution and ANSI standard dialect mappings.
+8. **Decentralized Regional Kiosks & Comprehensive Market Systems:** Integrates 5-hub asynchronous guild kiosks with continuous limit orderbook depth, in-game courier parcel delivery, equipment durability & blacksmith gold sink, atomic 2-way P2P direct trade, and HMAC-SHA256 cryptographic session authentication.
 
 ---
 
@@ -161,18 +162,26 @@ Scrolls-of-Agora/
 ├── src/
 │   ├── config.py                 # Typed configuration, domain constants & environment loading
 │   ├── database.py               # Multi-engine adapter (PostgreSQL pool + SQLite WAL) & double-entry journal
+│   ├── auth.py                   # HMAC-SHA256 session token generation, verification & auth dependency
 │   ├── models.py                 # Pydantic schemas (typed request/response validation)
 │   ├── repositories/             # Data Access Objects (parameterized SQL)
 │   │   ├── market_repo.py        # Orderbook, inventory bag & 24h candlestick queries
-│   │   ├── transaction_repo.py   # Atomic buyout, escrow bidding, forging, kiosk flip & balanced journal
+│   │   ├── transaction_repo.py   # Atomic buyout, escrow bidding, forging, durability repair, P2P swap
+│   │   ├── mail_repo.py          # Persistent in-game mailbox, courier parcels, COD & bag overflow
+│   │   ├── orderbook_repo.py     # Continuous double-sided limit orderbook matching engine
 │   │   └── analytics_repo.py     # 7 Relational queries, query plans & cycle-safe recursive CTE
 │   ├── services/
-│   │   └── dupe_bench_service.py # Multi-threaded database concurrency benchmark (Pessimistic vs Unsafe)
+│   │   ├── dupe_bench_service.py # Multi-threaded database concurrency benchmark (Pessimistic vs Unsafe)
+│   │   ├── broadcaster.py        # WebSocket pub/sub live telemetry broadcaster
+│   │   └── scheduler.py          # Background daemon for expired listing sweeping & continuous rollups
 │   └── routers/                  # Modular FastAPI APIRouters
 │       ├── market.py
 │       ├── transactions.py
 │       ├── analytics.py
-│       └── benchmarks.py
+│       ├── benchmarks.py
+│       ├── mail.py
+│       ├── orderbook.py
+│       └── auth.py
 ├── sql/
 │   ├── schema.sql                # PostgreSQL master DDL (constraints & partial indexes)
 │   ├── seed.sql                  # PostgreSQL seed dataset
@@ -181,12 +190,13 @@ Scrolls-of-Agora/
 │   ├── queries.sql               # Relational algebra query suite
 │   ├── transactions.sql          # PL/pgSQL stored procedures (FOR UPDATE)
 │   └── explain_plans.sql         # EXPLAIN (ANALYZE, BUFFERS) query plans
-├── tests/                        # Comprehensive Pytest Suite
+├── tests/                        # Comprehensive Pytest Suite (26 tests)
 │   ├── conftest.py               # Test isolation fixtures
 │   ├── test_database.py          # Adapter, dialect adaptation & telemetry tests
 │   ├── test_transactions.py      # Buyouts, escrow, forging, kiosk flips & journal invariance
 │   ├── test_analytics.py         # Relational queries & cycle-safe CTE
-│   └── test_concurrency.py       # Multi-threaded concurrency benchmarks
+│   ├── test_concurrency.py       # Multi-threaded concurrency benchmarks
+│   └── test_systems_upgrade.py   # Mail, orderbook matching, repair, P2P & HMAC security tests
 ├── scripts/
 │   └── seed_scale.py             # 10,000+ tuple dataset generator & index evaluator
 ├── static/
@@ -198,7 +208,7 @@ Scrolls-of-Agora/
 │   ├── CONCURRENCY.md            # 2PL, MVCC, lock ordering & deadlock elimination
 │   └── BENCHMARKS.md             # Concurrency test results & query plan analysis
 ├── app.py                         # Clean FastAPI application entry point
-├── test_engine.py                 # 14-point systems verification & concurrency suite
+├── test_engine.py                 # 21-point comprehensive systems verification & concurrency suite
 └── compose.yml                    # Docker Compose stack (PostgreSQL 17-alpine + pgAdmin 4)
 ```
 
@@ -221,12 +231,12 @@ Open **[http://127.0.0.1:8090](http://127.0.0.1:8090)** in your browser:
 
 ### 2. Run the Automated Test Suites
 
-**Run the Pytest Suite (19 tests):**
+**Run the Pytest Suite (26 tests):**
 ```bash
 pytest tests/ -v
 ```
 
-**Run the 14-Point Systems Verification Runner:**
+**Run the 21-Point Systems Verification Runner:**
 ```bash
 python test_engine.py
 ```
@@ -243,9 +253,16 @@ Output:
 [PASS] Unprotected Race Benchmark: Detected concurrent stale-read race window & write collisions
 [PASS] 100-Thread Anti-Dupe Stress Test: 1 settled, 99 blocked by lock queue, 0 dupes minted
 [PASS] Q1–Q7 Relational Algebra Operational & Analytical Queries: 100% verified
-[PASS] Double-Entry Ledger Invariance Verified: 0 imbalance (Credits + Debits = 0)
+[PASS] Double-Entry Ledger Invariance Verified: 0 imbalance across all transaction groups
+[PASS] In-Game Mailbox & Courier Parcel Dispatch Verified: Claimed parcel & verified item transfer
+[PASS] Blacksmith Durability & Gold Sink Verified: Restored equipment to 100% durability
+[PASS] Atomic 2-Way P2P Trade Verified: Zero-tax swap executed atomically with 2PL ordering
+[PASS] Continuous Limit Orderbook Matching Verified: Depth retrieved and limit orders active
+[PASS] Real-Time OHLC Continuous Aggregator Verified: Generated multi-period market candles
+[PASS] Cryptographic HMAC Session Auth Token Verified: Verified identity and signed bearer token
+[PASS] Expired Listing Sweeper & Final Ledger Audit: 0 imbalance across all systems
 ========================================================================
-  ALL 14 SYSTEMS VERIFICATION & CONCURRENCY CHECKS PASSED 100%!
+  ALL 21 SYSTEMS VERIFICATION & CONCURRENCY CHECKS PASSED 100%!
 ========================================================================
 ```
 

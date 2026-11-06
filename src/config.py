@@ -39,3 +39,10 @@ MAX_KIOSK_TAX_RATE_BPS = 2500
 
 RMT_ANOMALY_MULTIPLIER = 15
 SYSTEM_SINK_ACCOUNT = "SYSTEM_SINK"
+
+# Systems Upgrades: Capacity, Durability, Mail, Orderbook & Auth
+DEFAULT_MAX_BAG_SLOTS = 20
+REPAIR_COST_PER_DURABILITY = 5
+MAIL_EXPIRATION_DAYS = 30
+SECRET_KEY = os.environ.get("AGORA_SECRET_KEY", "agora-cryptographic-invariance-salt-2026")
+ENABLE_BACKGROUND_SCHEDULER = os.environ.get("AGORA_ENABLE_SCHEDULER", "1") in ("1", "true", "True")

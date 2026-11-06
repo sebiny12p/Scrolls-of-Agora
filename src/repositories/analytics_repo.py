@@ -317,3 +317,74 @@ def ban_and_seize_rmt_mule_ring() -> Dict[str, Any]:
             "seized_gold": total_seized,
             "message": f"Fraud Audit Executed: Banned {len(suspect_ids)} accounts in wash ring & confiscated {total_seized:,}g illicit gold.",
         }
+
+
+def rollup_realtime_ohlc() -> Dict[str, Any]:
+    """
+    Dynamic real-time OHLC continuous aggregation pipeline.
+    Aggregates executed trades from ledger_transactions and inserts price_history_ohlc candles.
+    """
+    from datetime import datetime, timezone
+
+    with get_db_cursor(immediate=True) as cur:
+        # Group settled transactions by item and realm
+        execute_sql(cur, """
+            SELECT
+                ii.item_id,
+                al.realm_id,
+                COUNT(lt.tx_id) AS volume,
+                MIN(lt.gross_price) AS low_p,
+                MAX(lt.gross_price) AS high_p
+            FROM ledger_transactions lt
+            JOIN auction_listings al ON al.listing_id = lt.listing_id
+            JOIN inventory_items ii ON ii.instance_id = lt.instance_id
+            GROUP BY ii.item_id, al.realm_id;
+        """)
+        groups = rows_to_dicts(cur.fetchall())
+        updated_candles = 0
+
+        for g in groups:
+            item_id = g["item_id"]
+            realm_id = g["realm_id"]
+            vol = g["volume"]
+            low_p = g["low_p"]
+            high_p = g["high_p"]
+
+            # Fetch earliest (open) price
+            execute_sql(cur, """
+                SELECT lt.gross_price
+                FROM ledger_transactions lt
+                JOIN auction_listings al ON al.listing_id = lt.listing_id
+                JOIN inventory_items ii ON ii.instance_id = lt.instance_id
+                WHERE ii.item_id = ? AND al.realm_id = ?
+                ORDER BY lt.tx_id ASC LIMIT 1;
+            """, (item_id, realm_id))
+            open_row = cur.fetchone()
+            open_p = open_row["gross_price"] if hasattr(open_row, "keys") else open_row[0]
+
+            # Fetch latest (close) price
+            execute_sql(cur, """
+                SELECT lt.gross_price
+                FROM ledger_transactions lt
+                JOIN auction_listings al ON al.listing_id = lt.listing_id
+                JOIN inventory_items ii ON ii.instance_id = lt.instance_id
+                WHERE ii.item_id = ? AND al.realm_id = ?
+                ORDER BY lt.tx_id DESC LIMIT 1;
+            """, (item_id, realm_id))
+            close_row = cur.fetchone()
+            close_p = close_row["gross_price"] if hasattr(close_row, "keys") else close_row[0]
+
+            now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:00:00")
+
+            execute_sql(cur, """
+                INSERT INTO price_history_ohlc (item_id, realm_id, bucket_timestamp, open_price, high_price, low_price, close_price, volume_traded)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+            """, (item_id, realm_id, now_str, open_p, high_p, low_p, close_p, vol))
+            updated_candles += 1
+
+    return {
+        "success": True,
+        "aggregated_groups": len(groups),
+        "candles_generated": updated_candles,
+        "message": f"OHLC Aggregator Pipeline complete: generated {updated_candles} live market candles.",
+    }

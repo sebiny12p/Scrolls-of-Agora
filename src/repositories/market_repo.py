@@ -148,6 +148,9 @@ def get_market_state(player_id: int = 1005, realm_id: int = 0) -> Dict[str, Any]
         kpi_row = cur.fetchone()
         kpis = row_to_dict(kpi_row)
         kpis["backend_engine"] = ACTIVE_BACKEND
+        execute_sql(cur, "SELECT COUNT(*) AS uncollected_mail FROM player_mail WHERE recipient_id = ? AND is_collected = 0;", (player_id,))
+        mail_row = cur.fetchone()
+        kpis["uncollected_mail"] = (mail_row["uncollected_mail"] if hasattr(mail_row, "keys") else mail_row[0]) if mail_row else 0
 
     return {
         "kpis": kpis,

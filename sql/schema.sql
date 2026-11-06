@@ -3,6 +3,8 @@
 -- 13 Normalized Relations (BCNF / 3NF), Foreign Keys & Partial Covering Indexes
 -- ============================================================================
 
+DROP TABLE IF EXISTS limit_orders CASCADE;
+DROP TABLE IF EXISTS player_mail CASCADE;
 DROP TABLE IF EXISTS ledger_journal CASCADE;
 DROP TABLE IF EXISTS price_history_ohlc CASCADE;
 DROP TABLE IF EXISTS ledger_transactions CASCADE;
@@ -191,12 +193,42 @@ CREATE TABLE price_history_ohlc (
 CREATE TABLE ledger_journal (
     entry_id BIGSERIAL PRIMARY KEY,
     tx_group_id VARCHAR(64) NOT NULL,
-    event_type VARCHAR(32) NOT NULL CHECK (event_type IN ('BUYOUT', 'ESCROW_LOCK', 'ESCROW_REFUND', 'FORGE_FEE', 'KIOSK_BID', 'KIOSK_WIN_FEE', 'KIOSK_REFUND', 'SEIZURE')),
+    event_type VARCHAR(32) NOT NULL CHECK (event_type IN ('BUYOUT', 'ESCROW_LOCK', 'ESCROW_REFUND', 'FORGE_FEE', 'KIOSK_BID', 'KIOSK_WIN_FEE', 'KIOSK_REFUND', 'SEIZURE', 'REPAIR_FEE', 'P2P_TRADE', 'LIMIT_ESCROW_LOCK', 'LIMIT_ESCROW_REFUND', 'LIMIT_MATCH', 'MAIL_COD')),
     account_type VARCHAR(32) NOT NULL CHECK (account_type IN ('PLAYER_LIQUID', 'PLAYER_ESCROW', 'GUILD_TREASURY', 'SYSTEM_SINK')),
     account_id VARCHAR(64) NOT NULL,
     amount BIGINT NOT NULL,
     balance_after BIGINT,
     description TEXT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 14. PLAYER MAIL & ASYNCHRONOUS COURIER PARCELS
+CREATE TABLE player_mail (
+    mail_id SERIAL PRIMARY KEY,
+    recipient_id INT NOT NULL REFERENCES players(player_id) ON DELETE CASCADE,
+    sender_name VARCHAR(48) NOT NULL DEFAULT 'Agora Courier',
+    subject VARCHAR(100) NOT NULL,
+    body TEXT NOT NULL DEFAULT '',
+    attached_gold BIGINT NOT NULL DEFAULT 0 CHECK (attached_gold >= 0),
+    attached_instance_id INT REFERENCES inventory_items(instance_id) ON DELETE SET NULL,
+    cod_amount BIGINT NOT NULL DEFAULT 0 CHECK (cod_amount >= 0),
+    is_read BOOLEAN NOT NULL DEFAULT FALSE,
+    is_collected BOOLEAN NOT NULL DEFAULT FALSE,
+    sent_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP
+);
+
+-- 15. CONTINUOUS DOUBLE-SIDED LIMIT ORDERBOOK (Bid & Ask Matching)
+CREATE TABLE limit_orders (
+    order_id SERIAL PRIMARY KEY,
+    player_id INT NOT NULL REFERENCES players(player_id) ON DELETE CASCADE,
+    item_id INT NOT NULL REFERENCES item_templates(item_id) ON DELETE CASCADE,
+    realm_id INT NOT NULL REFERENCES realms(realm_id) ON DELETE CASCADE,
+    side VARCHAR(8) NOT NULL CHECK (side IN ('BUY', 'SELL')),
+    unit_price BIGINT NOT NULL CHECK (unit_price > 0),
+    quantity INT NOT NULL DEFAULT 1 CHECK (quantity > 0),
+    filled_quantity INT NOT NULL DEFAULT 0 CHECK (filled_quantity >= 0),
+    status VARCHAR(16) NOT NULL DEFAULT 'OPEN' CHECK (status IN ('OPEN', 'FILLED', 'CANCELLED')),
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -218,3 +250,5 @@ CREATE INDEX idx_inventory_owner ON inventory_items (owner_id, is_escrowed);
 CREATE INDEX idx_ledger_executed_at ON ledger_transactions (executed_at DESC);
 CREATE INDEX idx_journal_tx_group ON ledger_journal(tx_group_id);
 CREATE INDEX idx_journal_account ON ledger_journal(account_type, account_id);
+CREATE INDEX idx_mail_recipient ON player_mail(recipient_id, is_collected);
+CREATE INDEX idx_limit_orders_active ON limit_orders(item_id, realm_id, side, status);
